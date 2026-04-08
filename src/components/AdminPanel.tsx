@@ -344,107 +344,107 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     );
 
     return (
-        <div className="absolute inset-0 bg-white z-[100] flex flex-col text-sm">
-            <header className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white shrink-0">
+        <div className="absolute inset-0 bg-background z-[100] flex flex-col text-sm">
+            <header className="px-6 py-4 border-b border-border flex items-center justify-between bg-card shrink-0">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-                        <Settings size={16} />
+                    <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center text-secondary-foreground shadow-lg">
+                        <Settings size={20} />
                     </div>
                     <div>
-                        <h2 className="text-lg font-semibold text-gray-800">Painel Admin</h2>
-                        <p className="text-xs text-gray-500">Gestão Comercial</p>
+                        <h2 className="text-lg font-bold text-card-foreground">Painel Admin</h2>
+                        <p className="text-sm text-muted-foreground">Gestão Comercial</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-red-500">
+                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-xl text-muted-foreground hover:text-destructive transition-colors">
                         <X size={20} />
                     </button>
                 </div>
             </header>
 
             <div className="flex flex-1 overflow-hidden">
-                <nav className="w-52 border-r border-gray-200 p-4 flex flex-col gap-2 bg-white">
+                <nav className="w-56 border-r border-border p-4 flex flex-col gap-2 bg-card">
                     {[
-                        { id: 'stats', label: 'Início', icon: <LayoutDashboard size={16} /> },
-                        { id: 'catalog', label: 'Cardápio', icon: <LayoutGrid size={16} /> },
-                        { id: 'inventory', label: 'Estoque', icon: <Package size={16} /> },
-                        { id: 'customers', label: 'Clientes', icon: <Users size={16} /> },
-                        { id: 'employees', label: 'Equipe', icon: <Shield size={16} /> },
-                        { id: 'fiscal', label: 'Fiscal', icon: <FileText size={16} /> },
-                        { id: 'sales', label: 'Vendas', icon: <History size={16} /> },
+                        { id: 'stats', label: 'Início', icon: <LayoutDashboard size={18} /> },
+                        { id: 'catalog', label: 'Cardápio', icon: <LayoutGrid size={18} /> },
+                        { id: 'inventory', label: 'Estoque', icon: <Package size={18} /> },
+                        { id: 'customers', label: 'Clientes', icon: <Users size={18} /> },
+                        { id: 'employees', label: 'Equipe', icon: <Shield size={18} /> },
+                        { id: 'fiscal', label: 'Fiscal', icon: <FileText size={18} /> },
+                        { id: 'sales', label: 'Vendas', icon: <History size={18} /> },
                     ].map(item => (
                         <button
                             key={item.id}
                             onClick={() => setView(item.id as any)}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium ${view === item.id ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${view === item.id ? 'bg-secondary/10 text-secondary' : 'text-muted-foreground hover:bg-muted hover:text-card-foreground'}`}
                         >
                             {item.icon}
                             {item.label}
                         </button>
                     ))}
-                    <div className="mt-auto p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <p className="text-xs text-gray-500 mb-0.5">v2.5.0</p>
-                        <p className="text-sm text-gray-600">Conserva POS</p>
+                    <div className="mt-auto p-4 bg-muted rounded-xl border border-border">
+                        <p className="text-xs text-muted-foreground mb-0.5">v2.5.0</p>
+                        <p className="text-sm font-medium text-card-foreground">Conserva POS</p>
                     </div>
                 </nav>
 
-                <main className="flex-1 overflow-y-auto p-8 bg-gray-50 relative">
+                <main className="flex-1 overflow-y-auto p-8 bg-background relative">
                     {isLoading ? (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-300 gap-4">
-                            <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
-                            <p className="text-sm text-gray-500">Carregando dados...</p>
+                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4">
+                            <div className="w-12 h-12 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin" />
+                            <p className="text-sm text-muted-foreground">Carregando dados...</p>
                         </div>
                     ) : (
                         <div className="max-w-7xl mx-auto space-y-8 pb-20">
                             {view === 'stats' && (
-                                <div className="space-y-6">
+                                <div className="space-y-8">
                                     <div>
-                                        <h3 className="text-lg font-semibold text-gray-800">Visão Geral</h3>
-                                        <p className="text-sm text-gray-500">Resumo das vendas e produtos ativos</p>
+                                        <h3 className="text-xl font-bold text-foreground">Visão Geral</h3>
+                                        <p className="text-sm text-muted-foreground">Resumo das vendas e produtos ativos</p>
                                     </div>
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div className="bg-white rounded-lg p-6 border border-gray-200">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <span className="text-sm font-medium text-blue-600">Vendas</span>
-                                                <div className="w-10 h-10 bg-blue-600 text-white rounded-lg flex items-center justify-center">
-                                                    <TrendingUp size={20} />
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                        <div className="bg-card rounded-2xl p-6 border border-border shadow-sm hover:shadow-md transition-all">
+                                            <div className="flex items-center justify-between mb-5">
+                                                <span className="text-sm font-bold text-secondary uppercase">Vendas</span>
+                                                <div className="w-12 h-12 bg-secondary text-secondary-foreground rounded-xl flex items-center justify-center shadow-lg">
+                                                    <TrendingUp size={24} />
                                                 </div>
                                             </div>
-                                            <div className="text-3xl font-semibold text-gray-900">{sales.length}</div>
-                                            <p className="text-sm text-gray-500 mt-1">Total de Vendas</p>
+                                            <div className="text-4xl font-black text-card-foreground tabular-nums">{sales.length}</div>
+                                            <p className="text-sm text-muted-foreground mt-2">Total de Vendas</p>
                                         </div>
-                                        <div className="bg-white rounded-lg p-6 border border-gray-200">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <span className="text-sm font-medium text-green-600">Receita Hoje</span>
-                                                <div className="w-10 h-10 bg-green-600 text-white rounded-lg flex items-center justify-center">
-                                                    <DollarSign size={20} />
+                                        <div className="bg-card rounded-2xl p-6 border border-success/20 shadow-sm hover:shadow-md transition-all">
+                                            <div className="flex items-center justify-between mb-5">
+                                                <span className="text-sm font-bold text-success uppercase">Receita Hoje</span>
+                                                <div className="w-12 h-12 bg-success text-success-foreground rounded-xl flex items-center justify-center shadow-lg">
+                                                    <DollarSign size={24} />
                                                 </div>
                                             </div>
-                                            <div className="text-3xl font-semibold text-gray-900">R$ {todayRevenue.toFixed(2)}</div>
-                                            <p className="text-sm text-gray-500 mt-1">Vendas do dia</p>
+                                            <div className="text-4xl font-black text-card-foreground tabular-nums">R$ {todayRevenue.toFixed(2)}</div>
+                                            <p className="text-sm text-muted-foreground mt-2">Vendas do dia</p>
                                         </div>
-                                        <div className="bg-white rounded-lg p-6 border border-gray-200">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <span className="text-sm font-medium text-purple-600">Clientes</span>
-                                                <div className="w-10 h-10 bg-purple-600 text-white rounded-lg flex items-center justify-center">
-                                                    <Users size={20} />
+                                        <div className="bg-card rounded-2xl p-6 border border-primary/20 shadow-sm hover:shadow-md transition-all">
+                                            <div className="flex items-center justify-between mb-5">
+                                                <span className="text-sm font-bold text-primary uppercase">Clientes</span>
+                                                <div className="w-12 h-12 bg-primary text-primary-foreground rounded-xl flex items-center justify-center shadow-lg">
+                                                    <Users size={24} />
                                                 </div>
                                             </div>
-                                            <div className="text-3xl font-semibold text-gray-900">{customers.length}</div>
-                                            <p className="text-sm text-gray-500 mt-1">Clientes cadastrados</p>
+                                            <div className="text-4xl font-black text-card-foreground tabular-nums">{customers.length}</div>
+                                            <p className="text-sm text-muted-foreground mt-2">Clientes cadastrados</p>
                                         </div>
                                     </div>
-                                    <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                                        <div className="flex items-center justify-between mb-6">
-                                            <h3 className="text-base font-semibold text-gray-800">Desempenho Semanal</h3>
-                                            <div className="flex gap-1.5 px-3 py-1 bg-gray-50 rounded-full">
+                                    <div className="bg-card rounded-2xl border border-border p-8 shadow-sm">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <h3 className="text-lg font-bold text-card-foreground">Desempenho Semanal</h3>
+                                            <div className="flex gap-2 px-4 py-2 bg-muted rounded-xl">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-                                                    <span className="text-[9px] font-bold text-gray-400 uppercase">Receita (R$)</span>
+                                                    <div className="h-2 w-2 rounded-full bg-secondary" />
+                                                    <span className="text-xs font-bold text-muted-foreground uppercase">Receita (R$)</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="h-32 flex items-end gap-1.5 px-1">
+                                        <div className="h-40 flex items-end gap-2 px-2">
                                             {useMemo(() => {
                                                 const last7Days = Array.from({ length: 7 }).map((_, i) => {
                                                     const date = new Date();
@@ -462,17 +462,17 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                                                 const maxAmount = Math.max(...dailyData.map(d => d.amount), 1);
 
                                                 return dailyData.map((d, i) => (
-                                                    <div key={`chart-bar-${i}`} className="flex-1 flex flex-col items-center gap-2 group">
-                                                        <div className="w-full bg-blue-50 rounded-t-lg group-hover:bg-blue-100 transition-all cursor-help relative h-full flex items-end">
+                                                    <div key={`chart-bar-${i}`} className="flex-1 flex flex-col items-center gap-3 group">
+                                                        <div className="w-full bg-secondary/10 rounded-xl group-hover:bg-secondary/20 transition-all cursor-help relative h-full flex items-end">
                                                             <div
-                                                                className="w-full bg-blue-600 rounded-t-lg transition-all duration-500"
-                                                                style={{ height: `${(d.amount / maxAmount) * 100}%` }}
+                                                                className="w-full bg-secondary rounded-xl transition-all duration-500"
+                                                                style={{ height: `${(d.amount / maxAmount) * 100}%`, minHeight: '4px' }}
                                                             />
-                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-[9px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 font-bold shadow-xl">
+                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-1.5 bg-foreground text-background text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 font-bold shadow-xl">
                                                                 R$ {d.amount.toFixed(2)}
                                                             </div>
                                                         </div>
-                                                        <span className="text-[8px] font-bold text-gray-400 uppercase">{new Date(d.date).toLocaleDateString('pt-BR', { weekday: 'short' })}</span>
+                                                        <span className="text-xs font-bold text-muted-foreground uppercase">{new Date(d.date).toLocaleDateString('pt-BR', { weekday: 'short' })}</span>
                                                     </div>
                                                 ));
                                             }, [sales])}

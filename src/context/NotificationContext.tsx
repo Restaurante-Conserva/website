@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,7 @@ export type Notification = {
     id: string;
     type: NotificationType;
     message: string;
+    isExiting?: boolean;
 };
 
 interface NotificationContextType {
@@ -21,45 +22,60 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
-    const notify = useCallback((type: NotificationType, message: string) => {
-        const id = crypto.randomUUID();
-        setNotifications(prev => [...prev, { id, type, message }]);
-
-        // Auto remove
+    const remove = useCallback((id: string) => {
+        setNotifications(prev => prev.map(n => 
+            n.id === id ? { ...n, isExiting: true } : n
+        ));
         setTimeout(() => {
             setNotifications(prev => prev.filter(n => n.id !== id));
-        }, 4000);
+        }, 300);
     }, []);
 
-    const remove = (id: string) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-    };
+    const notify = useCallback((type: NotificationType, message: string) => {
+        const id = crypto.randomUUID();
+        setNotifications(prev => [...prev, { id, type, message, isExiting: false }]);
+
+        // Auto remove after 2 seconds
+        setTimeout(() => {
+            remove(id);
+        }, 2000);
+    }, [remove]);
 
     return (
         <NotificationContext.Provider value={{ notify }}>
             {children}
 
-            {/* Toast Container */}
-            <div className="fixed bottom-6 right-6 z-[60] flex flex-col gap-3 pointer-events-none">
-                {notifications.map((n) => (
+            {/* Toast Container - Centered at top */}
+            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-3 pointer-events-none">
+                {notifications.map((n, index) => (
                     <div
                         key={n.id}
+                        style={{ 
+                            transform: `translateY(${index * 4}px)`,
+                            zIndex: 9999 - index 
+                        }}
                         className={cn(
-                            "pointer-events-auto min-w-[300px] bg-white rounded-xl shadow-2xl p-4 border-l-4 flex items-start gap-3 animate-in slide-in-from-right-full fade-in duration-300",
-                            n.type === 'success' && "border-green-500",
-                            n.type === 'error' && "border-red-500",
-                            n.type === 'info' && "border-blue-500"
+                            "pointer-events-auto min-w-[320px] max-w-[90vw] rounded-xl shadow-2xl px-5 py-4 flex items-center gap-3 backdrop-blur-sm",
+                            "transition-all duration-300 ease-out",
+                            n.isExiting 
+                                ? "animate-slide-out-top opacity-0" 
+                                : "animate-slide-in-top",
+                            n.type === 'success' && "bg-success/95 text-success-foreground",
+                            n.type === 'error' && "bg-destructive/95 text-destructive-foreground",
+                            n.type === 'info' && "bg-secondary/95 text-secondary-foreground"
                         )}
                     >
-                        {n.type === 'success' && <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />}
-                        {n.type === 'error' && <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />}
-                        {n.type === 'info' && <Info className="w-5 h-5 text-blue-500 shrink-0" />}
+                        {n.type === 'success' && <CheckCircle className="w-5 h-5 shrink-0" />}
+                        {n.type === 'error' && <AlertCircle className="w-5 h-5 shrink-0" />}
+                        {n.type === 'info' && <Info className="w-5 h-5 shrink-0" />}
 
-                        <div className="flex-1 pt-0.5">
-                            <p className="text-sm font-medium text-gray-800">{n.message}</p>
-                        </div>
+                        <p className="flex-1 text-sm font-medium">{n.message}</p>
 
-                        <button onClick={() => remove(n.id)} className="text-gray-400 hover:text-gray-600">
+                        <button 
+                            onClick={() => remove(n.id)} 
+                            className="p-1 rounded-lg hover:bg-foreground/10 transition-colors"
+                            aria-label="Fechar notificação"
+                        >
                             <X className="w-4 h-4" />
                         </button>
                     </div>

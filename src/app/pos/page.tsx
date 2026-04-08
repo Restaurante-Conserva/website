@@ -16,7 +16,9 @@ import {
     Lock,
     KeyRound,
     AlertCircle,
-    History
+    History,
+    Sun,
+    Moon
 } from 'lucide-react';
 import POSView from '../../components/POSView';
 import TableView from '../../components/TableView';
@@ -24,8 +26,10 @@ import AdminPanel from '../../components/AdminPanel';
 import CashierPanel from '../../components/CashierPanel';
 import FiadoPanel from '../../components/FiadoPanel';
 import SalesView from '../../components/SalesView';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function POSPage() {
+    const { theme, toggleTheme } = useTheme();
     const [employee, setEmployee] = useState<any>(null);
     const [view, setView] = useState<'pos' | 'tables' | 'admin' | 'cashier' | 'fiado' | 'sales'>('pos');
     const [isAuthenticating, setIsAuthenticating] = useState(true);
@@ -142,38 +146,38 @@ export default function POSPage() {
     };
 
     if (isAuthenticating || isCheckingCash) return (
-        <div className="h-screen bg-white flex items-center justify-center">
-            <Loader2 className="animate-spin text-blue-600" size={32} />
+        <div className="h-screen bg-background flex items-center justify-center">
+            <Loader2 className="animate-spin text-secondary" size={32} />
         </div>
     );
 
     if (!employee) {
         return (
-            <div className="h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-gray-100 p-8 flex flex-col items-center">
-                    <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center text-white mb-6 shadow-lg shadow-blue-200">
-                        <Lock size={32} />
+            <div className="h-screen bg-background flex items-center justify-center p-4">
+                <div className="w-full max-w-sm bg-card rounded-3xl shadow-2xl border border-border p-10 flex flex-col items-center">
+                    <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center text-secondary-foreground mb-8 shadow-lg">
+                        <Lock size={36} />
                     </div>
-                    <h1 className="text-xl font-bold text-gray-800 mb-1">CONSERVA POS</h1>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-8">Identificação do Operador</p>
+                    <h1 className="text-2xl font-bold text-card-foreground mb-2">CONSERVA POS</h1>
+                    <p className="text-sm font-medium text-muted-foreground mb-10">Identificação do Operador</p>
 
-                    <form onSubmit={handleLogin} className="w-full space-y-4">
+                    <form onSubmit={handleLogin} className="w-full space-y-5">
                         <input
                             autoFocus
                             type="password"
                             value={password}
                             onChange={e => { setPassword(e.target.value); setLoginError(false); }}
-                            className={`w-full bg-gray-50 border ${loginError ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-xl px-4 py-3 text-center text-2xl font-bold outline-none focus:border-blue-500 transition-all`}
-                            placeholder="••••"
+                            className={`w-full bg-muted border ${loginError ? 'border-destructive bg-destructive/10' : 'border-border'} rounded-2xl px-4 py-4 text-center text-2xl font-bold outline-none focus:border-secondary transition-all text-card-foreground`}
+                            placeholder="******"
                         />
-                        {loginError && <p className="text-center text-[10px] text-red-500 font-bold uppercase">Senha Inválida</p>}
-                        <button className="w-full bg-blue-600 text-white font-bold text-xs uppercase py-4 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
+                        {loginError && <p className="text-center text-sm text-destructive font-bold">Senha Inválida</p>}
+                        <button className="w-full bg-secondary text-secondary-foreground font-bold text-sm uppercase py-4 rounded-2xl hover:opacity-90 transition-all shadow-lg">
                             Acessar Sistema
                         </button>
                     </form>
 
-                    <div className="w-full mt-8 pt-6 border-t border-gray-100">
-                        <p className="text-center text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-4">Novo por aqui?</p>
+                    <div className="w-full mt-10 pt-8 border-t border-border">
+                        <p className="text-center text-sm text-muted-foreground font-medium mb-4">Novo por aqui?</p>
                         <button
                             onClick={async () => {
                                 const pass = prompt("Senha de Primeiro Acesso:");
@@ -186,9 +190,9 @@ export default function POSPage() {
                                     alert("Senha Incorreta");
                                 }
                             }}
-                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition-all"
+                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border text-sm font-medium text-muted-foreground hover:bg-muted hover:border-secondary hover:text-secondary transition-all"
                         >
-                            <ShieldCheck size={14} />
+                            <ShieldCheck size={16} />
                             Configurar Primeiro Acesso
                         </button>
                     </div>
@@ -207,18 +211,18 @@ export default function POSPage() {
     const isCashRequired = !cashSession && view !== 'admin';
 
     return (
-        <div className="flex h-screen bg-white text-gray-800 font-sans text-sm overflow-hidden">
+        <div className="flex h-screen bg-background text-foreground font-sans text-sm overflow-hidden">
             {/* Nav Lateral */}
-            <aside className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 z-30 shrink-0">
-                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-lg mb-8 uppercase">C</div>
+            <aside className="w-18 bg-card border-r border-border flex flex-col items-center py-5 z-30 shrink-0">
+                <div className="w-11 h-11 bg-secondary rounded-xl flex items-center justify-center font-bold text-secondary-foreground text-lg mb-8 uppercase shadow-lg">C</div>
 
-                <nav className="flex-1 flex flex-col gap-4">
+                <nav className="flex-1 flex flex-col gap-3">
                     {menu.map(item => (
                         <button
                             key={item.id}
                             disabled={isCashRequired && item.id !== 'cashier'}
                             onClick={() => setView(item.id as any)}
-                            className={`p-3 rounded-lg transition-all flex items-center justify-center ${view === item.id ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'} ${isCashRequired && item.id !== 'cashier' ? 'opacity-20 cursor-not-allowed' : ''}`}
+                            className={`p-3 rounded-xl transition-all flex items-center justify-center ${view === item.id ? 'bg-secondary/10 text-secondary' : 'text-muted-foreground hover:text-card-foreground hover:bg-muted'} ${isCashRequired && item.id !== 'cashier' ? 'opacity-20 cursor-not-allowed' : ''}`}
                             title={item.label}
                         >
                             {item.icon}
@@ -227,7 +231,7 @@ export default function POSPage() {
 
                     <button
                         onClick={() => setView('fiado')}
-                        className={`p-3 rounded-lg transition-all flex items-center justify-center ${view === 'fiado' ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        className={`p-3 rounded-xl transition-all flex items-center justify-center ${view === 'fiado' ? 'bg-secondary/10 text-secondary' : 'text-muted-foreground hover:text-card-foreground hover:bg-muted'}`}
                         title="Gerenciar Fiado"
                     >
                         <ClipboardList size={20} />
@@ -236,7 +240,7 @@ export default function POSPage() {
                     {employee?.role === 'admin' && (
                         <button
                             onClick={handleAdminAccess}
-                            className={`p-3 rounded-lg transition-all flex items-center justify-center ${view === 'admin' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`p-3 rounded-xl transition-all flex items-center justify-center ${view === 'admin' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-card-foreground hover:bg-muted'}`}
                             title="Administração"
                         >
                             <ShieldCheck size={20} />
@@ -244,15 +248,23 @@ export default function POSPage() {
                     )}
                 </nav>
 
-                <div className="flex flex-col items-center gap-4">
-                    <button onClick={handleLogout} className="p-3 text-gray-300 hover:text-red-500 transition-colors" title="Sair">
+                <div className="flex flex-col items-center gap-3">
+                    {/* Theme Toggle */}
+                    <button 
+                        onClick={toggleTheme} 
+                        className="p-3 text-muted-foreground hover:text-card-foreground hover:bg-muted rounded-xl transition-all" 
+                        title={theme === 'light' ? 'Modo Escuro' : 'Modo Claro'}
+                    >
+                        {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                    </button>
+                    <button onClick={handleLogout} className="p-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-colors" title="Sair">
                         <LogOut size={20} />
                     </button>
                     <div className="flex flex-col items-center group relative cursor-help">
-                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100">
-                            <User size={16} />
+                        <div className="w-9 h-9 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary border border-secondary/20">
+                            <User size={18} />
                         </div>
-                        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-[9px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                        <div className="absolute left-full ml-2 px-3 py-1.5 bg-foreground text-background text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 font-medium">
                             {employee.name}
                         </div>
                     </div>
@@ -260,16 +272,18 @@ export default function POSPage() {
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 flex flex-col relative overflow-hidden bg-white">
-                {/* Status da Impressora */}
-                <div className="absolute top-3 right-4 flex items-center gap-1.5 z-50 bg-white/80 backdrop-blur px-2 py-1 rounded-full border border-gray-100 text-[9px] text-gray-400">
-                    <div className={`w-1.5 h-1.5 rounded-full ${bridgeStatus === 'online' ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
-                    <span className="font-bold opacity-60">IMP: {bridgeStatus === 'online' ? 'OK' : 'OFF'}</span>
-                </div>
+            <main className="flex-1 flex flex-col relative overflow-hidden bg-background">
+                {/* Status da Impressora - Only on PDV */}
+                {view === 'pos' && (
+                    <div className="absolute top-3 right-4 flex items-center gap-2 z-50 bg-card/90 backdrop-blur px-3 py-1.5 rounded-full border border-border text-xs">
+                        <div className={`w-2 h-2 rounded-full ${bridgeStatus === 'online' ? 'bg-success' : 'bg-destructive animate-pulse'}`} />
+                        <span className="font-bold text-muted-foreground">IMP: {bridgeStatus === 'online' ? 'OK' : 'OFF'}</span>
+                    </div>
+                )}
 
                 {isCashRequired && (
-                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-600 text-white rounded-full text-[10px] font-bold uppercase flex items-center gap-2 shadow-lg animate-bounce">
-                        <AlertCircle size={14} />
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 bg-destructive text-destructive-foreground rounded-full text-xs font-bold uppercase flex items-center gap-2 shadow-lg animate-bounce">
+                        <AlertCircle size={16} />
                         Abra o caixa para habilitar as funções de venda
                     </div>
                 )}
@@ -284,25 +298,25 @@ export default function POSPage() {
 
             {/* Admin Password Modal */}
             {isAdminModalOpen && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-xs bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 animate-in zoom-in duration-200">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-xs bg-card rounded-2xl shadow-2xl p-8 border border-border animate-in zoom-in duration-200">
                         <div className="flex justify-between items-center mb-6">
-                            <div className="flex items-center gap-2 text-gray-800 font-bold text-xs uppercase">
-                                <KeyRound size={16} className="text-blue-600" /> Acesso Restrito
+                            <div className="flex items-center gap-2 text-card-foreground font-bold text-sm uppercase">
+                                <KeyRound size={18} className="text-secondary" /> Acesso Restrito
                             </div>
-                            <button onClick={() => setIsAdminModalOpen(false)} className="text-gray-300 hover:text-gray-500"><X size={20} /></button>
+                            <button onClick={() => setIsAdminModalOpen(false)} className="text-muted-foreground hover:text-card-foreground transition-colors"><X size={20} /></button>
                         </div>
-                        <form onSubmit={verifyAdmin} className="space-y-4">
+                        <form onSubmit={verifyAdmin} className="space-y-5">
                             <input
                                 autoFocus
                                 type="password"
                                 value={adminPass}
                                 onChange={e => { setAdminPass(e.target.value); setAdminError(false); }}
-                                className={`w-full bg-gray-50 border ${adminError ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-xl px-4 py-3 text-center text-xl font-bold outline-none focus:border-blue-500`}
+                                className={`w-full bg-muted border ${adminError ? 'border-destructive bg-destructive/10' : 'border-border'} rounded-xl px-4 py-3 text-center text-xl font-bold outline-none focus:border-secondary transition-all text-card-foreground`}
                                 placeholder="Senha Admin"
                             />
-                            {adminError && <p className="text-center text-[9px] text-red-500 font-bold uppercase italic">Acesso Negado</p>}
-                            <button className="w-full bg-gray-900 text-white font-bold text-[10px] uppercase py-3 rounded-xl hover:bg-black transition-all">Confirmar</button>
+                            {adminError && <p className="text-center text-sm text-destructive font-bold">Acesso Negado</p>}
+                            <button className="w-full bg-foreground text-background font-bold text-sm uppercase py-3 rounded-xl hover:opacity-90 transition-all">Confirmar</button>
                         </form>
                     </div>
                 </div>

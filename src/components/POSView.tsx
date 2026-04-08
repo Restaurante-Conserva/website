@@ -180,21 +180,21 @@ export default function POSView() {
     };
 
     return (
-        <div className="flex h-full bg-white font-sans text-sm selection:bg-blue-100 overflow-hidden">
+        <div className="flex h-full bg-background font-sans text-sm selection:bg-secondary/20 overflow-hidden">
             <div className="flex-1 flex flex-col min-w-0">
-                <header className="px-8 py-4 bg-white border-b border-gray-100 shrink-0">
+                <header className="px-8 py-4 bg-card border-b border-border shrink-0">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-800 tracking-tight mb-0.5">Vendas PVD</h2>
-                            <p className="text-[10px] font-bold text-gray-400 flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                            <h2 className="text-xl font-bold text-card-foreground tracking-tight mb-0.5">Vendas PDV</h2>
+                            <p className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-success" />
                                 Operador: {employee?.name || 'Operador'}
                             </p>
                         </div>
                         <div className="relative group w-full md:w-80">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                             <input
-                                className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-10 pr-4 py-2 text-xs font-medium placeholder:text-gray-300 outline-none focus:bg-white focus:border-blue-500 transition-all"
+                                className="w-full bg-muted border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium placeholder:text-muted-foreground/50 outline-none focus:bg-card focus:border-secondary transition-all text-card-foreground"
                                 placeholder="Buscar produto..."
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
@@ -205,7 +205,7 @@ export default function POSView() {
                     <div className="flex gap-2 mt-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
                         <button
                             onClick={() => setSelectedCategory(null)}
-                            className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap ${!selectedCategory ? 'bg-gray-800 text-white shadow-sm' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${!selectedCategory ? 'bg-foreground text-background shadow-sm' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`}
                         >
                             Todos
                         </button>
@@ -213,7 +213,7 @@ export default function POSView() {
                             <button
                                 key={cat.id || cat._id}
                                 onClick={() => setSelectedCategory(cat.id || (cat._id as string))}
-                                className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap ${(selectedCategory === cat.id || selectedCategory === cat._id) ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${(selectedCategory === cat.id || selectedCategory === cat._id) ? 'bg-secondary text-secondary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`}
                             >
                                 {cat.name}
                             </button>
@@ -224,16 +224,16 @@ export default function POSView() {
                 <main
                     ref={scrollRef}
                     onScroll={handleScroll}
-                    className="flex-1 overflow-y-auto p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-min content-start"
+                    className="flex-1 overflow-y-auto p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-min content-start bg-background"
                 >
                     {isLoading ? (
                         Array.from({ length: 10 }).map((_, i) => (
-                            <div key={`skeleton-p-${i}`} className="aspect-square bg-gray-50 rounded-2xl animate-pulse" />
+                            <div key={`skeleton-p-${i}`} className="aspect-square bg-muted rounded-2xl animate-pulse" />
                         ))
                     ) : visibleProducts.length === 0 ? (
-                        <div className="col-span-full py-20 text-center opacity-30 flex flex-col items-center gap-2">
+                        <div className="col-span-full py-20 text-center text-muted-foreground flex flex-col items-center gap-2">
                             <Tag size={40} />
-                            <p className="text-[11px] font-bold">Nenhum produto encontrado</p>
+                            <p className="text-sm font-bold">Nenhum produto encontrado</p>
                         </div>
                     ) : (
                         <>
@@ -241,32 +241,32 @@ export default function POSView() {
                                 <button
                                     key={p.id || p._id}
                                     onClick={() => addToCart(p)}
-                                    className="group bg-white border border-gray-100 rounded-2xl flex flex-col transition-all shadow-sm hover:border-blue-500 hover:shadow-md overflow-hidden relative"
+                                    className="group bg-card border border-border rounded-2xl flex flex-col transition-all shadow-sm hover:border-secondary hover:shadow-md overflow-hidden relative"
                                 >
-                                    <div className="w-full aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden relative">
+                                    <div className="w-full aspect-[4/3] bg-muted flex items-center justify-center overflow-hidden relative">
                                         {p.image ? (
                                             <img src={p.image} alt={p.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                         ) : (
-                                            <Utensils size={28} className="text-gray-200 group-hover:text-blue-300 transition-colors" />
+                                            <Utensils size={28} className="text-muted-foreground/30 group-hover:text-secondary transition-colors" />
                                         )}
                                         {p.stock !== null && p.stock <= 0 && (
-                                            <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px] flex items-center justify-center">
-                                                <span className="text-[10px] font-black text-red-500 uppercase border border-red-200 bg-red-50 px-2 py-1 rounded">Sem Estoque</span>
+                                            <div className="absolute inset-0 bg-card/80 backdrop-blur-[1px] flex items-center justify-center">
+                                                <span className="text-xs font-black text-destructive uppercase border border-destructive/20 bg-destructive/10 px-2 py-1 rounded">Sem Estoque</span>
                                             </div>
                                         )}
                                     </div>
                                     <div className="p-3 flex flex-col gap-1 w-full relative z-10">
-                                        <h3 className="text-[11px] font-bold text-gray-800 leading-tight line-clamp-2 text-left h-[2.5em]" title={p.name}>{p.name}</h3>
+                                        <h3 className="text-xs font-bold text-card-foreground leading-tight line-clamp-2 text-left h-[2.5em]" title={p.name}>{p.name}</h3>
                                         <div className="flex items-center justify-between">
-                                            <p className="text-xs font-bold text-blue-600">R$ {(p.price || 0).toFixed(2)}</p>
-                                            {p.stock !== null && <span className={`text-[8px] font-bold uppercase ${p.stock <= 5 ? 'text-red-500' : 'text-gray-400'}`}>{p.stock}un</span>}
+                                            <p className="text-sm font-bold text-secondary">R$ {(p.price || 0).toFixed(2)}</p>
+                                            {p.stock !== null && <span className={`text-xs font-bold uppercase ${p.stock <= 5 ? 'text-destructive' : 'text-muted-foreground'}`}>{p.stock}un</span>}
                                         </div>
                                     </div>
                                 </button>
                             ))}
                             {visibleProducts.length < filteredProducts.length && (
                                 <div className="col-span-full py-4 text-center">
-                                    <Loader2 className="animate-spin text-blue-600 mx-auto" size={24} />
+                                    <Loader2 className="animate-spin text-secondary mx-auto" size={24} />
                                 </div>
                             )}
                         </>
@@ -274,16 +274,16 @@ export default function POSView() {
                 </main>
             </div>
 
-            <aside className="w-[320px] bg-white border-l border-gray-100 flex flex-col shrink-0 shadow-lg">
-                <header className="p-6 border-b border-gray-100 space-y-4">
+            <aside className="w-[340px] bg-card border-l border-border flex flex-col shrink-0 shadow-lg">
+                <header className="p-6 border-b border-border space-y-4">
                     <div className="flex items-center gap-3">
-                        <h3 className="text-sm font-bold text-gray-800">Carrinho</h3>
-                        <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full text-[10px] font-bold">{cart.length}</span>
+                        <h3 className="text-sm font-bold text-card-foreground">Carrinho</h3>
+                        <span className="bg-secondary/10 text-secondary px-2.5 py-0.5 rounded-full text-xs font-bold">{cart.length}</span>
                     </div>
                     {cart.length > 0 && (
                         <button
                             onClick={() => setCart([])}
-                            className="text-gray-300 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer p-2 rounded-lg hover:bg-red-50"
+                            className="text-muted-foreground hover:text-destructive transition-colors border-none bg-transparent cursor-pointer p-2 rounded-lg hover:bg-destructive/10"
                             title="Esvaziar Carrinho"
                         >
                             <Trash2 size={16} />
@@ -291,51 +291,51 @@ export default function POSView() {
                     )}
 
                     {selectedCustomer ? (
-                        <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 space-y-3">
+                        <div className="bg-secondary/5 border border-secondary/20 rounded-2xl p-4 space-y-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-100"><User size={20} /></div>
+                                    <div className="w-10 h-10 rounded-xl bg-secondary text-secondary-foreground flex items-center justify-center shadow-md"><User size={20} /></div>
                                     <div className="min-w-0">
-                                        <p className="text-[10px] font-bold text-blue-900 uppercase tracking-tight truncate">{selectedCustomer.name}</p>
-                                        <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">{selectedCustomer.phone || selectedCustomer.cpf || 'IDENTIFICADO'}</p>
+                                        <p className="text-xs font-bold text-card-foreground uppercase tracking-tight truncate">{selectedCustomer.name}</p>
+                                        <p className="text-xs font-medium text-muted-foreground">{selectedCustomer.phone || selectedCustomer.cpf || 'IDENTIFICADO'}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setSelectedCustomer(null)} className="text-blue-300 hover:text-red-500 transition-colors bg-transparent border-none p-0"><X size={16} /></button>
+                                <button onClick={() => setSelectedCustomer(null)} className="text-muted-foreground hover:text-destructive transition-colors bg-transparent border-none p-0"><X size={16} /></button>
                             </div>
 
 
-                            <div className="flex items-center justify-between pt-3 border-t border-blue-100/50">
+                            <div className="flex items-center justify-between pt-3 border-t border-secondary/10">
                                 <div className="flex flex-col">
-                                    <span className="text-[7px] font-bold text-blue-400 uppercase tracking-widest">Fidelidade</span>
-                                    <span className="text-xs font-black text-blue-700">{selectedCustomer.loyaltyPoints || 0} <span className="text-[8px]">PTS</span></span>
+                                    <span className="text-xs font-medium text-muted-foreground">Fidelidade</span>
+                                    <span className="text-sm font-black text-secondary">{selectedCustomer.loyaltyPoints || 0} <span className="text-xs">PTS</span></span>
                                 </div>
                                 {selectedCustomer.address?.street && (
                                     <div className="flex flex-col items-end max-w-[150px]">
-                                        <span className="text-[7px] font-bold text-blue-400 uppercase tracking-widest text-right">Entrega</span>
-                                        <span className="text-[8px] font-bold text-blue-600 truncate w-full text-right uppercase">{selectedCustomer.address.street}, {selectedCustomer.address.number}</span>
+                                        <span className="text-xs font-medium text-muted-foreground text-right">Entrega</span>
+                                        <span className="text-xs font-bold text-card-foreground truncate w-full text-right uppercase">{selectedCustomer.address.street}, {selectedCustomer.address.number}</span>
                                     </div>
                                 )}
                             </div>
 
-                            <button onClick={() => setIsDebtModalOpen(true)} className="w-full bg-white border border-red-100 rounded-xl p-3 flex items-center justify-between hover:border-red-300 hover:shadow-sm transition-all group cursor-pointer">
+                            <button onClick={() => setIsDebtModalOpen(true)} className="w-full bg-card border border-destructive/20 rounded-xl p-3 flex items-center justify-between hover:border-destructive/50 hover:shadow-sm transition-all group cursor-pointer">
                                 <div className="flex flex-col text-left">
-                                    <span className="text-[9px] font-bold text-red-400 uppercase tracking-widest group-hover:text-red-500 transition-colors">Gerenciar Fiado</span>
-                                    <span className="text-sm font-black text-red-600 group-hover:scale-105 transition-transform origin-left">Saldo: R$ {(selectedCustomer.debtBalance || 0).toFixed(2)}</span>
+                                    <span className="text-xs font-bold text-destructive/60 uppercase group-hover:text-destructive transition-colors">Gerenciar Fiado</span>
+                                    <span className="text-sm font-black text-destructive group-hover:scale-105 transition-transform origin-left">Saldo: R$ {(selectedCustomer.debtBalance || 0).toFixed(2)}</span>
                                 </div>
-                                <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all">
+                                <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center text-destructive group-hover:bg-destructive group-hover:text-destructive-foreground transition-all">
                                     <Utensils size={16} className={selectedCustomer.debtBalance > 0 ? "animate-pulse" : ""} />
                                 </div>
                             </button>
                         </div>
                     ) : (
                         <div className="flex flex-col gap-2">
-                            <button onClick={() => { setShowDebtorsOnly(true); setIsCustomerModalOpen(true); }} className="w-full py-3 bg-red-50 text-red-500 border border-red-100 rounded-xl text-xs font-bold tracking-wide hover:bg-red-100 transition-all flex items-center justify-center gap-2 mb-1">
+                            <button onClick={() => { setShowDebtorsOnly(true); setIsCustomerModalOpen(true); }} className="w-full py-3 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl text-xs font-bold tracking-wide hover:bg-destructive/20 transition-all flex items-center justify-center gap-2 mb-1">
                                 <Receipt size={14} /> Gerenciar Fiados
                             </button>
-                            <button onClick={() => { setShowDebtorsOnly(false); setCustomerModalMode('search'); setIsCustomerModalOpen(true); }} className="w-full py-3 border border-gray-100 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
+                            <button onClick={() => { setShowDebtorsOnly(false); setCustomerModalMode('search'); setIsCustomerModalOpen(true); }} className="w-full py-3 border border-border rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted flex items-center justify-center gap-2 transition-all">
                                 <Search size={14} /> Identificar Cliente
                             </button>
-                            <button onClick={() => { setCustomerModalMode('register'); setIsCustomerModalOpen(true); }} className="w-full py-3 bg-gray-900 text-white rounded-xl text-xs font-semibold tracking-wide hover:bg-black transition-all flex items-center justify-center gap-2">
+                            <button onClick={() => { setCustomerModalMode('register'); setIsCustomerModalOpen(true); }} className="w-full py-3 bg-foreground text-background rounded-xl text-xs font-semibold tracking-wide hover:opacity-90 transition-all flex items-center justify-center gap-2">
                                 <Plus size={14} /> Cadastrar Novo Cliente
                             </button>
                         </div>
