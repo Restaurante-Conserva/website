@@ -23,14 +23,27 @@ interface DebtModalProps {
     customer: Customer;
     onClose: () => void;
     onUpdate: () => void;
+    dark?: boolean;
 }
 
-export default function DebtModal({ customer, onClose, onUpdate }: DebtModalProps) {
+export default function DebtModal({ customer, onClose, onUpdate, dark = false }: DebtModalProps) {
     const [view, setView] = useState<'list' | 'add'>('list');
     const [loading, setLoading] = useState(false);
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [type, setType] = useState<'addition' | 'payment' | 'adjustment'>('payment');
+
+    const theme = {
+        bg: dark ? 'bg-[#0a0a0a]' : 'bg-white',
+        card: dark ? 'bg-[#111] border-[#1a1a1a] shadow-inner' : 'bg-white border-slate-200 shadow-sm',
+        header: dark ? 'bg-[#0a0a0a] border-[#1a1a1a]' : 'bg-white border-slate-100',
+        text: dark ? 'text-white' : 'text-slate-800',
+        subtext: dark ? 'text-[#444]' : 'text-slate-500',
+        input: dark ? 'bg-[#0a0a0a] border-[#222] text-white focus:border-orange-500' : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-blue-500',
+        item: dark ? 'bg-[#111] border-[#1a1a1a] hover:border-[#333]' : 'bg-white border-slate-200 hover:border-slate-300',
+        btnSecondary: dark ? 'bg-[#1a1a1a] text-[#555] hover:text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200',
+        btnPrimary: dark ? 'bg-orange-600 hover:bg-orange-500' : 'bg-blue-600 hover:bg-blue-700'
+    };
 
     const handleSubmit = async () => {
         const val = parseFloat(amount);
@@ -38,13 +51,6 @@ export default function DebtModal({ customer, onClose, onUpdate }: DebtModalProp
 
         setLoading(true);
         try {
-            // Update debt balance
-            let newBalance = customer.debtBalance;
-            if (type === 'addition') newBalance += val;
-            if (type === 'payment') newBalance = Math.max(0, newBalance - val);
-            if (type === 'adjustment') newBalance = val; // Assuming adjustment sets the value? Or delta? Let's say delta.
-
-            // Actually let's make adjustment a delta or setter. Setter is easier for "modificar".
             const actualNewBalance = type === 'adjustment' ? val : (type === 'addition' ? customer.debtBalance + val : customer.debtBalance - val);
 
             const res = await fetch('/api/customers', {
@@ -54,7 +60,7 @@ export default function DebtModal({ customer, onClose, onUpdate }: DebtModalProp
                     id: customer.id || customer._id,
                     debtBalance: actualNewBalance,
                     debtHistory: [
-                        ...customer.debtHistory,
+                        ...(customer.debtHistory || []),
                         {
                             date: new Date().toISOString(),
                             type,
@@ -66,7 +72,6 @@ export default function DebtModal({ customer, onClose, onUpdate }: DebtModalProp
             });
 
             if (res.ok && type === 'payment') {
-                // Log in cash if payment
                 await fetch('/api/cash', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -91,65 +96,67 @@ export default function DebtModal({ customer, onClose, onUpdate }: DebtModalProp
     };
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 font-sans text-sm">
+        <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200 ${dark ? 'bg-black/80' : 'bg-black/40 backdrop-blur-sm'}`}>
+            <div className={`w-full max-w-2xl ${theme.bg} rounded-2xl shadow-2xl flex flex-col overflow-hidden border font-sans text-sm max-h-[90vh] ${dark ? 'border-[#1a1a1a]' : 'border-slate-100'}`}>
 
-                <header className="p-6 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-10">
+                <header className={`px-6 py-5 border-b flex items-center justify-between shrink-0 ${theme.header}`}>
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center shadow-inner">
-                            <History size={24} />
+                        <div className={`w-10 h-10 ${dark ? 'bg-orange-600/10 text-orange-500 border-orange-500/20' : 'bg-rose-50 text-rose-600 border-rose-100'} rounded-xl flex items-center justify-center shadow-sm border`}>
+                            <History size={20} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-extrabold text-gray-800 tracking-tight">Histórico de Fiados</h3>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{customer.name}</p>
+                            <h3 className={`text-base font-black uppercase italic tracking-tight ${theme.text}`}>Histórico de Fiados</h3>
+                            <p className={`text-[10px] uppercase font-bold tracking-widest ${theme.subtext}`}>{customer.name}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-8">
                         <div className="text-right">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase block tracking-widest leading-none mb-1">Saldo Devedor</span>
-                            <span className="text-xl font-black text-red-600 tracking-tighter">R$ {(customer.debtBalance || 0).toFixed(2)}</span>
+                            <span className={`text-[8px] font-black uppercase tracking-widest block mb-0.5 ${theme.subtext}`}>Saldo Devedor</span>
+                            <span className={`text-2xl font-black italic tabular-nums ${dark ? 'text-white' : 'text-rose-600'}`}>R$ {(customer.debtBalance || 0).toFixed(2)}</span>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl text-gray-300 transition-all border-none bg-transparent cursor-pointer">
+                        <button onClick={onClose} className={`p-2 rounded-lg transition-colors border-none bg-transparent cursor-pointer ${dark ? 'text-[#333] hover:text-white' : 'text-slate-400 hover:bg-slate-100'}`}>
                             <X size={20} />
                         </button>
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-6 min-h-[400px]">
+                <div className="flex-1 overflow-y-auto p-6 md:p-8 dark-scroll">
                     {view === 'list' ? (
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center mb-6">
-                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Últimas Movimentações</h4>
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center">
+                                <h4 className={`text-[10px] font-black uppercase tracking-widest italic ${theme.text}`}>Últimas Movimentações</h4>
                                 <button
                                     onClick={() => setView('add')}
-                                    className="bg-gray-900 text-white px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 border-none cursor-pointer"
+                                    className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all flex items-center gap-2 border-none cursor-pointer ${theme.btnPrimary} text-white`}
                                 >
-                                    <Plus size={14} /> Registrar Novo
+                                    <Plus size={16} /> Novo Registro
                                 </button>
                             </div>
 
-                            {customer.debtHistory && customer.debtHistory.length > 0 ? (
-                                <div className="space-y-2">
+                            {(customer.debtHistory && customer.debtHistory.length > 0) ? (
+                                <div className="space-y-3">
                                     {[...customer.debtHistory].reverse().map((entry, i) => (
-                                        <div key={entry._id || i} className="bg-gray-50/50 border border-gray-100 p-4 rounded-2xl flex items-center justify-between group hover:bg-white hover:border-blue-100 transition-all">
+                                        <div key={entry._id || i} className={`p-4 rounded-xl flex items-center justify-between transition-all border ${theme.item}`}>
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${entry.type === 'payment' ? 'bg-green-100 text-green-600' :
-                                                    entry.type === 'addition' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
-                                                    }`}>
-                                                    {entry.type === 'payment' ? <Minus size={14} /> : entry.type === 'addition' ? <Plus size={14} /> : <Receipt size={14} />}
+                                                <div className={`w-11 h-11 rounded-lg flex items-center justify-center border ${
+                                                    entry.type === 'payment' ? (dark ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-emerald-50 text-emerald-600 border-emerald-100') :
+                                                    entry.type === 'addition' ? (dark ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-rose-50 text-rose-600 border-rose-100') : (dark ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' : 'bg-blue-50 text-blue-600 border-blue-100')
+                                                }`}>
+                                                    {entry.type === 'payment' ? <Minus size={18} /> : entry.type === 'addition' ? <Plus size={18} /> : <Receipt size={18} />}
                                                 </div>
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-gray-800 uppercase tracking-tight line-clamp-1">{entry.description}</p>
-                                                    <div className="flex items-center gap-2 mt-0.5 text-[8px] text-gray-400 font-bold uppercase">
-                                                        <Calendar size={10} />
+                                                <div className="space-y-1">
+                                                    <p className={`text-[11px] font-bold uppercase italic ${theme.text} line-clamp-1`}>{entry.description}</p>
+                                                    <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${theme.subtext}`}>
+                                                        <Calendar size={12} className="opacity-50" />
                                                         {new Date(entry.date).toLocaleString('pt-BR')}
                                                     </div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4">
-                                                <span className={`text-xs font-black tracking-tight ${entry.type === 'payment' ? 'text-green-600' :
-                                                    entry.type === 'addition' ? 'text-red-600' : 'text-blue-600'
-                                                    }`}>
+                                                <span className={`text-sm font-black italic tabular-nums ${
+                                                    entry.type === 'payment' ? (dark ? 'text-green-500' : 'text-emerald-600') :
+                                                    entry.type === 'addition' ? (dark ? 'text-red-500' : 'text-rose-600') : (dark ? 'text-blue-500' : 'text-blue-600')
+                                                }`}>
                                                     {entry.type === 'payment' ? '-' : entry.type === 'addition' ? '+' : ''} R$ {entry.amount.toFixed(2)}
                                                 </span>
                                             </div>
@@ -157,73 +164,80 @@ export default function DebtModal({ customer, onClose, onUpdate }: DebtModalProp
                                     ))}
                                 </div>
                             ) : (
-                                <div className="py-20 flex flex-col items-center justify-center text-gray-300 opacity-60">
-                                    <Receipt size={48} className="mb-4" />
-                                    <p className="text-[10px] font-bold uppercase tracking-widest">Nenhuma movimentação encontrada</p>
+                                <div className="py-20 flex flex-col items-center justify-center text-[#222]">
+                                    <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-4 border-2 border-dashed ${dark ? 'bg-[#0a0a0a] border-[#1a1a1a]' : 'bg-slate-50 border-slate-100'}`}>
+                                        <Receipt size={32} className="opacity-20" />
+                                    </div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma movimentação registrada</p>
                                 </div>
                             )}
                         </div>
                     ) : (
-                        <div className="max-w-md mx-auto py-8 animate-in slide-in-from-bottom duration-300">
-                            <button onClick={() => setView('list')} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 mb-8 transition-all border-none bg-transparent cursor-pointer">
+                        <div className="max-w-md mx-auto py-4 animate-in slide-in-from-right-4 duration-200">
+                            <button onClick={() => setView('list')} className={`flex items-center gap-2 mb-8 transition-colors border-none bg-transparent cursor-pointer font-black text-[10px] uppercase tracking-widest ${dark ? 'text-[#333] hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}>
                                 <ArrowLeft size={16} />
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Voltar para o histórico</span>
+                                Voltar para o histórico
                             </button>
 
-                            <h4 className="text-lg font-black text-gray-800 tracking-tight mb-8">Novo registro de dívida</h4>
+                            <h4 className={`text-xl font-black italic uppercase tracking-tight mb-8 ${theme.text}`}>Novo Lançamento</h4>
 
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-3 gap-2">
+                            <div className="space-y-8">
+                                <div className="grid grid-cols-3 gap-3">
                                     {(['payment', 'addition', 'adjustment'] as const).map(t => (
                                         <button
                                             key={t}
                                             onClick={() => setType(t)}
-                                            className={`p-3 rounded-2xl border text-[9px] font-bold uppercase tracking-widest transition-all ${type === t ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'
-                                                } cursor-pointer`}
+                                            className={`p-4 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center cursor-pointer ${
+                                                type === t 
+                                                    ? (dark ? 'bg-orange-600 text-white border-orange-500 ring-4 ring-orange-500/10' : 'bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-500/10')
+                                                    : (dark ? 'bg-[#0a0a0a] border-[#1a1a1a] text-[#333] hover:border-[#333]' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50')
+                                            }`}
                                         >
                                             {t === 'payment' ? 'Pagamento' : t === 'addition' ? 'Consumo' : 'Ajustar Total'}
                                         </button>
                                     ))}
                                 </div>
 
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Valor do lançamento</label>
+                                <div className="space-y-2">
+                                    <label className={`text-[10px] font-black uppercase tracking-widest italic ml-1 ${theme.subtext}`}>Valor do lançamento</label>
                                     <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-gray-300">R$</span>
+                                        <span className={`absolute left-5 top-1/2 -translate-y-1/2 text-xl font-black italic ${dark ? 'text-[#222]' : 'text-slate-300'}`}>R$</span>
                                         <input
-                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 py-4 text-2xl font-bold outline-none focus:bg-white focus:border-blue-500 transition-all font-sans"
+                                            className={`w-full rounded-2xl pl-14 pr-6 py-5 text-2xl font-black italic tabular-nums outline-none transition-all shadow-inner ${theme.input} placeholder:opacity-20`}
                                             type="number"
-                                            placeholder="0,00"
+                                            placeholder="0.00"
                                             value={amount}
                                             onChange={e => setAmount(e.target.value)}
                                             autoFocus
                                         />
                                     </div>
-                                    <p className="text-[8px] text-gray-400 ml-1 font-medium mt-1 uppercase">
+                                    <p className={`text-[9px] font-bold uppercase tracking-widest mt-2 ${theme.subtext} opacity-50`}>
                                         {type === 'adjustment' ? 'O saldo total do cliente passará a ser este valor.' : `Este valor será ${type === 'payment' ? 'subtraído da' : 'adicionado à'} dívida.`}
                                     </p>
                                 </div>
 
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Descrição / Motivo</label>
+                                <div className="space-y-2">
+                                    <label className={`text-[10px] font-black uppercase tracking-widest italic ml-1 ${theme.subtext}`}>Descrição / Motivo</label>
                                     <input
-                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-4 text-xs font-bold outline-none focus:bg-white focus:border-blue-500 transition-all placeholder:text-gray-300 uppercase"
+                                        className={`w-full rounded-xl px-4 py-4 text-xs font-bold uppercase tracking-tight outline-none transition-all shadow-inner ${theme.input} placeholder:opacity-20`}
                                         type="text"
-                                        placeholder="Ex: Compra do dia 05/01, Pagamento em Dinheiro..."
+                                        placeholder="EX: PAGAMENTO PARCIAL..."
                                         value={description}
                                         onChange={e => setDescription(e.target.value)}
                                     />
                                 </div>
 
                                 <button
-                                    disabled={loading || !amount}
+                                    disabled={loading || !amount || parseFloat(amount) <= 0}
                                     onClick={handleSubmit}
-                                    className="w-full bg-blue-600 text-white py-5 rounded-2xl font-bold text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/10 active:scale-95 flex items-center justify-center gap-3 border-none cursor-pointer disabled:opacity-50"
+                                    className={`w-full text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-3 border-none cursor-pointer mt-4 shadow-orange-900/10 ${
+                                        loading || !amount || parseFloat(amount) <= 0 ? 'opacity-50 cursor-not-allowed' : theme.btnPrimary
+                                    }`}
                                 >
-                                    {loading ? <Loader2 className="animate-spin" size={20} /> : (
+                                    {loading ? <Loader2 dark={dark} size={20} /> : (
                                         <>
-                                            <Check size={18} />
-                                            <span>CONFIRMAR LANÇAMENTO</span>
+                                            <Check size={20} />
+                                            <span>Confirmar Lançamento</span>
                                         </>
                                     )}
                                 </button>
@@ -231,12 +245,11 @@ export default function DebtModal({ customer, onClose, onUpdate }: DebtModalProp
                         </div>
                     )}
                 </div>
-
             </div>
         </div>
     );
 }
 
-function Loader2({ className, size }: { className?: string, size?: number }) {
-    return <History className={`animate-spin ${className}`} size={size} />;
+function Loader2({ className, size, dark }: { className?: string, size?: number, dark?: boolean }) {
+    return <History className={`animate-spin ${className} ${dark ? 'text-white' : ''}`} size={size} />;
 }

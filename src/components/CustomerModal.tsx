@@ -1,22 +1,27 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useGlobal } from '../context/GlobalContext';
-import { Search, UserPlus, X, Phone, Mail, Fingerprint, MapPin, ChevronRight, Plus, Loader2, Globe, Home, User, Gift, Navigation, Users } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import { Search, UserPlus, X, MapPin, Loader2, Navigation, Users, Gift, User, ChevronRight, Plus } from 'lucide-react';
 
 interface CustomerModalProps {
     onClose: () => void;
     onSelect: (customer: any) => void;
     initialRegister?: boolean;
     showDebtorsOnly?: boolean;
+    dark?: boolean; // Kept for backwards compatibility but we are forcing dark in styles
 }
 
 export default function CustomerModal({ onClose, onSelect, initialRegister = false, showDebtorsOnly = false }: CustomerModalProps) {
     const { customers, refreshCustomers, isLoading } = useGlobal();
+    const { showToast } = useToast();
+    
     const [searchTerm, setSearchTerm] = useState('');
     const [mode, setMode] = useState<'search' | 'register'>(initialRegister ? 'register' : 'search');
     const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
     const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const [newCustomer, setNewCustomer] = useState({
         name: '',
@@ -34,12 +39,6 @@ export default function CustomerModal({ onClose, onSelect, initialRegister = fal
     });
 
     const suggestionTimeout = useRef<any>(null);
-
-    // useEffect(() => {
-    //     fetchCustomers();
-    // }, []); // Data is now global
-
-    // fetchCustomers removed
 
     const handleCepLookup = async (cep: string) => {
         const cleanCep = cep.replace(/\D/g, '');
@@ -69,9 +68,7 @@ export default function CustomerModal({ onClose, onSelect, initialRegister = fal
 
     const handleAddressSearch = (query: string) => {
         setNewCustomer(prev => ({ ...prev, address: { ...prev.address, street: query } }));
-
         if (suggestionTimeout.current) clearTimeout(suggestionTimeout.current);
-
         if (query.length < 3) {
             setAddressSuggestions([]);
             return;
@@ -80,7 +77,6 @@ export default function CustomerModal({ onClose, onSelect, initialRegister = fal
         suggestionTimeout.current = setTimeout(async () => {
             setIsSearchingAddress(true);
             try {
-                // Using Photon (OSM) for address suggestions in Brazil
                 const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=pt`);
                 const data = await res.json();
                 const bzFeatures = data.features.filter((f: any) => f.properties.country === 'Brazil' || f.properties.countrycode === 'BR');
@@ -111,19 +107,20 @@ export default function CustomerModal({ onClose, onSelect, initialRegister = fal
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newCustomer.name) return;
+        if (!newCustomer.name) {
+            showToast('O nome é obrigatório.', 'error');
+            return;
+        }
 
-        // Validation for duplicate CPF
         const cleanCpf = newCustomer.cpf.replace(/\D/g, '');
         if (cleanCpf) {
             const exists = customers.find(c => c.cpf && c.cpf.replace(/\D/g, '') === cleanCpf);
             if (exists) {
-                alert('CPF já cadastrado para outro cliente!');
+                showToast('CPF já cadastrado para outro cliente!', 'error');
                 return;
             }
         }
 
-        // Prepare payload with null for empty fields
         const payload = {
             name: newCustomer.name,
             cpf: cleanCpf || null,
@@ -139,11 +136,7 @@ export default function CustomerModal({ onClose, onSelect, initialRegister = fal
             }
         };
 
-        // setIsLoading(true); // Global loading might be too aggressive here, maybe local loading state for save button?
-        // Using local loading just for button
-        const btn = e.currentTarget.querySelector('button[type="submit"]');
-        if (btn) (btn as HTMLButtonElement).disabled = true;
-
+        setIsSaving(true);
         try {
             const res = await fetch('/api/customers', {
                 method: 'POST',
@@ -151,17 +144,18 @@ export default function CustomerModal({ onClose, onSelect, initialRegister = fal
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
+            
             if (res.ok) {
-                await refreshCustomers(); // Update global state
+                await refreshCustomers();
+                showToast('Cliente cadastrado com sucesso!', 'success');
                 onSelect(data);
             } else {
-                alert(data.error || 'Erro ao cadastrar');
+                showToast(data.error || 'Erro ao cadastrar', 'error');
             }
         } catch (e) {
-            alert('Erro ao processar cadastro');
+            showToast('Erro ao processar cadastro', 'error');
         } finally {
-            // setIsLoading(false);
-            if (btn) (btn as HTMLButtonElement).disabled = false;
+            setIsSaving(false);
         }
     };
 
@@ -177,38 +171,44 @@ export default function CustomerModal({ onClose, onSelect, initialRegister = fal
     });
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 font-sans text-sm selection:bg-blue-100">
-            <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-gray-100 animate-in zoom-in duration-200">
-                <header className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 font-sans text-sm bg-gray-900/60 dark:bg-black/80 backdrop-blur-sm transition-colors">
+            <div className="w-full max-w-2xl bg-white dark:bg-[#0c0c0c] border border-gray-200 dark:border-white/[0.06] rounded-[24px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                <header className="px-6 md:px-8 py-6 flex items-center justify-between bg-gray-50 dark:bg-[#111] border-b border-gray-200 dark:border-white/[0.05] shrink-0 transition-colors">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner">
+                        <div className="w-12 h-12 bg-orange-50 dark:bg-orange-600/10 text-orange-600 dark:text-orange-500 border border-orange-200 dark:border-orange-500/20 rounded-2xl flex items-center justify-center shadow-sm dark:shadow-none">
                             <Users size={24} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-extrabold text-gray-800 tracking-tight">{showDebtorsOnly ? 'Gerenciar Fiados' : (mode === 'search' ? 'Identificar Cliente' : 'Novo Cliente')}</h3>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{showDebtorsOnly ? 'Clientes com pendências' : (mode === 'search' ? 'Busque por nome, CPF ou telefone' : 'Preencha os dados abaixo')}</p>
+                            <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
+                                {showDebtorsOnly ? 'Gerenciar Fiados' : (mode === 'search' ? 'Identificar Cliente' : 'Novo Cliente')}
+                            </h3>
+                            <p className="text-xs font-bold tracking-widest mt-1 text-gray-500 dark:text-[#555] uppercase">
+                                {showDebtorsOnly ? 'Clientes com pendências' : (mode === 'search' ? 'Busque por nome, CPF ou telefone' : 'Preencha os dados do cliente')}
+                            </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-300 transition-colors bg-transparent border-none">
-                        <X size={20} />
+                    <button onClick={onClose} className="p-2.5 rounded-xl transition-colors bg-gray-100 dark:bg-transparent border-none cursor-pointer text-gray-500 dark:text-[#555] hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white">
+                        <X size={24} />
                     </button>
                 </header>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                     {mode === 'register' ? (
-                        <form onSubmit={handleRegister} className="p-6 space-y-6 animate-in slide-in-from-bottom-2 duration-300">
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-[9px] font-bold text-blue-600 uppercase tracking-widest border-l-2 border-blue-600 pl-2">Dados Pessoais</p>
-                                    <div className="flex items-center gap-2 bg-orange-50 px-2 py-1 rounded text-[8px] font-bold text-orange-600 uppercase">
-                                        <Gift size={10} /> Ganha 1 ponto a cada R$ 10,00
+                        <form onSubmit={handleRegister} className="p-6 md:p-8 space-y-8 animate-in slide-in-from-bottom-2 duration-300">
+                            <div className="space-y-5">
+                                <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-white/[0.05]">
+                                    <h4 className="text-sm font-black flex items-center gap-2 uppercase text-gray-900 dark:text-white">
+                                        <User size={18} className="text-orange-600 dark:text-orange-500" />
+                                        Dados Pessoais
+                                    </h4>
+                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-orange-50 dark:bg-orange-600/10 text-orange-600 dark:text-orange-500 border border-orange-200 dark:border-orange-500/20 shadow-sm dark:shadow-none">
+                                        <Gift size={14} /> Ganha 1 ponto a cada R$ 10,00
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormInput label="Nome completo *" icon={<User size={14} />} value={newCustomer.name} onChange={(v: string) => setNewCustomer({ ...newCustomer, name: v })} placeholder="Nome..." compulsory />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+                                    <FormInput label="Nome completo" value={newCustomer.name} onChange={(v: string) => setNewCustomer({ ...newCustomer, name: v })} placeholder="Digite o nome..." compulsory={true} />
                                     <FormInput
                                         label="CPF / CNPJ"
-                                        icon={<Fingerprint size={14} />}
                                         value={newCustomer.cpf}
                                         onChange={(v: string) => {
                                             const clean = v.replace(/\D/g, '').substring(0, 14);
@@ -227,113 +227,120 @@ export default function CustomerModal({ onClose, onSelect, initialRegister = fal
                                             }
                                             setNewCustomer({ ...newCustomer, cpf: masked });
                                         }}
-                                        placeholder="000.000.000-00 (Opcional)"
+                                        placeholder="000.000.000-00"
                                     />
-                                    <FormInput label="Telefone / Contato" icon={<Phone size={14} />} value={newCustomer.phone} onChange={(v: string) => setNewCustomer({ ...newCustomer, phone: v })} placeholder="(00) 00000-0000" />
-                                    <FormInput label="E-mail" icon={<Mail size={14} />} value={newCustomer.email} onChange={(v: string) => setNewCustomer({ ...newCustomer, email: v })} placeholder="exemplo@mail.com" />
+                                    <FormInput label="Telefone" value={newCustomer.phone} onChange={(v: string) => setNewCustomer({ ...newCustomer, phone: v })} placeholder="(00) 00000-0000" />
+                                    <FormInput label="E-mail" value={newCustomer.email} onChange={(v: string) => setNewCustomer({ ...newCustomer, email: v })} placeholder="exemplo@email.com" />
                                 </div>
                             </div>
 
-                            <div className="space-y-4 pt-4 border-t border-gray-50">
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest border-l-2 border-gray-200 pl-2">Endereço</p>
-                                <div className="grid grid-cols-12 gap-4">
+                            <div className="space-y-5 pt-4">
+                                <h4 className="text-sm font-black flex items-center gap-2 pb-3 border-b border-gray-200 dark:border-white/[0.05] uppercase text-gray-900 dark:text-white">
+                                    <MapPin size={18} className="text-orange-600 dark:text-orange-500" /> Endereço
+                                </h4>
+                                <div className="grid grid-cols-12 gap-5 text-sm">
                                     <div className="col-span-12 md:col-span-4">
-                                        <FormInput label="CEP" icon={<Globe size={14} />} value={newCustomer.address.cep} onChange={handleCepLookup} placeholder="00000-000" />
+                                        <FormInput label="CEP" value={newCustomer.address.cep} onChange={handleCepLookup} placeholder="00000-000" />
                                     </div>
                                     <div className="col-span-12 md:col-span-8 relative">
-                                        <FormInput label="LOGRADOURO / ENDEREÇO" icon={<MapPin size={14} />} value={newCustomer.address.street} onChange={handleAddressSearch} placeholder="Rua, Av..." />
+                                        <FormInput label="Logradouro" value={newCustomer.address.street} onChange={handleAddressSearch} placeholder="Rua, Avenida..." />
                                         {addressSuggestions.length > 0 && (
-                                            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden divide-y divide-gray-50">
+                                            <div className="absolute top-full left-0 right-0 z-50 mt-2 overflow-hidden divide-y rounded-2xl shadow-2xl bg-white dark:bg-[#111] border border-gray-200 dark:border-white/[0.06] divide-gray-100 dark:divide-white/[0.05]">
                                                 {addressSuggestions.map((f, i) => (
-                                                    <button key={`addr-s-${i}`} type="button" onClick={() => selectAddress(f)} className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-start gap-3 transition-colors bg-white border-none">
-                                                        <Navigation size={12} className="text-blue-500 mt-1 shrink-0" />
+                                                    <button key={`addr-s-${i}`} type="button" onClick={() => selectAddress(f)} className="w-full px-5 py-4 text-left transition-colors border-none cursor-pointer flex items-start gap-3 bg-transparent hover:bg-gray-50 dark:hover:bg-white/[0.03]">
+                                                        <Navigation size={16} className="text-orange-600 dark:text-orange-500 mt-1 shrink-0" />
                                                         <div>
-                                                            <p className="text-[11px] font-bold text-gray-700 uppercase leading-tight">{f.properties.name}</p>
-                                                            <p className="text-[9px] text-gray-400 uppercase mt-0.5">{f.properties.district || f.properties.suburb}, {f.properties.city} - {f.properties.state}</p>
+                                                            <p className="text-[12px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">{f.properties.name}</p>
+                                                            <p className="text-[10px] font-bold uppercase tracking-widest mt-1 text-gray-500 dark:text-[#555]">{f.properties.district || f.properties.suburb}, {f.properties.city} - {f.properties.state}</p>
                                                         </div>
                                                     </button>
                                                 ))}
                                             </div>
                                         )}
                                         {isSearchingAddress && (
-                                            <div className="absolute right-3 bottom-3 text-gray-300">
-                                                <Loader2 size={14} className="animate-spin" />
+                                            <div className="absolute right-4 top-[38px] text-orange-600 dark:text-orange-500">
+                                                <Loader2 size={18} className="animate-spin" />
                                             </div>
                                         )}
                                     </div>
                                     <div className="col-span-12 md:col-span-3">
-                                        <FormInput label="Nº" icon={<Home size={14} />} value={newCustomer.address.number} onChange={(v: string) => setNewCustomer({ ...newCustomer, address: { ...newCustomer.address, number: v } })} />
+                                        <FormInput label="Número" value={newCustomer.address.number} onChange={(v: string) => setNewCustomer({ ...newCustomer, address: { ...newCustomer.address, number: v } })} placeholder="Nº" />
                                     </div>
-                                    <div className="col-span-12 md:col-span-6">
-                                        <FormInput label="BAIRRO" value={newCustomer.address.neighborhood} onChange={(v: string) => setNewCustomer({ ...newCustomer, address: { ...newCustomer.address, neighborhood: v } })} />
+                                    <div className="col-span-12 md:col-span-5">
+                                        <FormInput label="Bairro" value={newCustomer.address.neighborhood} onChange={(v: string) => setNewCustomer({ ...newCustomer, address: { ...newCustomer.address, neighborhood: v } })} placeholder="Bairro" />
                                     </div>
-                                    <div className="col-span-12 md:col-span-3">
-                                        <FormInput label="CIDADE/UF" value={`${newCustomer.address.city}/${newCustomer.address.state}`} onChange={() => { }} placeholder="Cidade..." />
+                                    <div className="col-span-12 md:col-span-4">
+                                        <FormInput label="Cidade / UF" value={`${newCustomer.address.city}/${newCustomer.address.state}`} onChange={() => { }} placeholder="Cidade/UF" />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex gap-3 pt-4">
-                                <button type="button" onClick={() => setMode('search')} className="flex-1 py-3 text-[10px] font-bold text-gray-400 tracking-widest hover:bg-gray-50 rounded-xl transition-all bg-transparent border-none">Voltar</button>
-                                <button type="submit" disabled={isLoading || !newCustomer.name} className="flex-[2] bg-blue-600 text-white py-3 rounded-xl font-bold text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-md disabled:opacity-50 border-none">
-                                    {isLoading ? <Loader2 className="animate-spin mx-auto" size={16} /> : 'Salvar Cadastro'}
+                            <div className="flex gap-4 pt-6 shrink-0 mt-auto">
+                                <button type="button" onClick={() => setMode('search')} className="px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all border-none cursor-pointer bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-[#aaa] hover:bg-gray-200 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white">
+                                    Cancelar
+                                </button>
+                                <button type="submit" disabled={isSaving || !newCustomer.name} className="flex-1 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md disabled:opacity-50 border-none cursor-pointer flex justify-center items-center gap-3 bg-orange-600 text-white hover:bg-orange-500 shadow-orange-600/30 dark:shadow-orange-900/30 hover:scale-[1.01] active:scale-[0.99]">
+                                    {isSaving ? <Loader2 className="animate-spin" size={20} /> : <UserPlus size={20} />}
+                                    {isSaving ? 'Salvando...' : 'Finalizar Cadastro'}
                                 </button>
                             </div>
                         </form>
                     ) : (
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 md:p-8 space-y-6 md:space-y-8">
                             <div className="relative group text-left">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#555] group-focus-within:text-orange-500 transition-colors" size={22} />
                                 <input
-                                    className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-10 pr-4 py-3 text-xs font-bold uppercase placeholder:text-gray-300 outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
-                                    placeholder="Buscar por nome, telefone ou CPF..."
+                                    className="w-full bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-white/[0.06] rounded-2xl pl-16 pr-5 py-5 text-sm font-bold text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#444] outline-none transition-all shadow-inner focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 dark:focus:ring-orange-500/20"
+                                    placeholder="BUSCAR POR NOME, TELEFONE OU CPF..."
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
                                     autoFocus
                                 />
                             </div>
 
-                            <button onClick={() => setMode('register')} className="w-full py-3.5 px-4 border border-dashed border-blue-200 bg-blue-50/10 rounded-xl text-blue-600 text-[10px] font-bold tracking-wider flex justify-between items-center hover:bg-blue-50 hover:border-blue-300 transition-all bg-transparent">
-                                <div className="flex items-center gap-2">
-                                    <UserPlus size={16} />
-                                    <span>NOVO CADASTRO</span>
+                            <button onClick={() => setMode('register')} className="w-full py-5 px-6 border-2 border-dashed rounded-2xl text-xs flex justify-between items-center transition-all cursor-pointer group border-gray-200 dark:border-white/[0.05] text-gray-600 dark:text-[#555] hover:border-orange-500/30 hover:text-orange-600 dark:hover:text-orange-500 bg-gray-50/50 dark:bg-transparent">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 rounded-xl transition-colors bg-white dark:bg-white/5 border border-gray-200 dark:border-transparent group-hover:bg-orange-50 dark:group-hover:bg-orange-500/10 group-hover:text-orange-600 dark:group-hover:text-orange-500 group-hover:border-orange-200 text-gray-500 dark:text-[#555]">
+                                        <UserPlus size={20} />
+                                    </div>
+                                    <span className="uppercase tracking-widest font-black">Cadastrar novo cliente</span>
                                 </div>
-                                <ChevronRight size={14} />
+                                <Plus size={24} className="group-hover:scale-110 transition-transform" />
                             </button>
 
-                            <div className="space-y-2">
+                            <div className="space-y-4 mt-6">
                                 {isLoading ? (
-                                    <div className="py-12 flex flex-col items-center gap-3 text-gray-300">
-                                        <Loader2 className="animate-spin" size={24} />
-                                        <p className="text-[9px] font-bold uppercase tracking-wider">Carregando...</p>
+                                    <div className="py-16 flex flex-col items-center gap-4 text-gray-500 dark:text-[#444]">
+                                        <Loader2 className="animate-spin" size={32} />
+                                        <p className="text-xs font-black uppercase tracking-widest">Buscando Clientes...</p>
                                     </div>
                                 ) : filtered.length === 0 ? (
-                                    <div className="py-12 text-center opacity-40">
-                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Nenhum cliente encontrado</p>
+                                    <div className="py-16 text-center text-gray-500 dark:text-[#444]">
+                                        <User size={48} className="mx-auto mb-4 opacity-20" />
+                                        <p className="text-xs font-black uppercase tracking-widest">Nenhum cliente catalogado</p>
                                     </div>
-                                ) : filtered.map(c => (
+                                ) : filtered.map((c: any) => (
                                     <button
                                         key={c._id || c.id}
                                         onClick={() => onSelect(c)}
-                                        className="w-full bg-white border border-gray-100 p-4 rounded-xl flex items-center justify-between hover:border-blue-500 hover:shadow-md transition-all text-left group"
+                                        className="w-full bg-white dark:bg-[#111] border border-gray-200 dark:border-white/[0.04] p-5 rounded-2xl flex items-center justify-between transition-all text-left group cursor-pointer hover:border-orange-500/30 hover:shadow-md dark:hover:bg-[#151515]"
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                                                <User size={18} />
+                                        <div className="flex items-center gap-5">
+                                            <div className="w-14 h-14 rounded-xl flex items-center justify-center transition-colors border bg-gray-50 dark:bg-[#0a0a0a] border-gray-200 dark:border-white/[0.05] text-gray-500 dark:text-[#555] group-hover:text-orange-600 dark:group-hover:text-orange-500 group-hover:border-orange-200 dark:group-hover:border-orange-500/20">
+                                                <User size={24} />
                                             </div>
                                             <div>
-                                                <h4 className="font-bold text-gray-700 text-xs uppercase tracking-tight">{c.name}</h4>
-                                                <p className="text-[9px] text-gray-400 font-bold mt-0.5 uppercase tracking-wide">{c.phone || c.cpf || 'Sem dados'}</p>
+                                                <h4 className="font-black uppercase text-base tracking-tight text-gray-900 dark:text-white">{c.name}</h4>
+                                                <p className="text-xs font-bold uppercase tracking-widest mt-1 text-gray-500 dark:text-[#555]">{c.phone || c.cpf || 'DADOS NÃO CONSTAM'}</p>
                                             </div>
                                         </div>
-                                        <div className="text-right flex items-center gap-4">
+                                        <div className="text-right flex items-center gap-6">
                                             <div className="flex flex-col items-end">
-                                                <div className="text-[8px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-lg uppercase flex items-center gap-1">
-                                                    <Gift size={8} /> {c.loyaltyPoints || 0} PTS
+                                                <div className="text-[10px] font-bold uppercase bg-gray-50 dark:bg-white/5 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-gray-200 dark:border-white/[0.05] text-gray-600 dark:text-[#aaa] group-hover:text-orange-700 dark:group-hover:text-white group-hover:bg-orange-50 dark:group-hover:bg-white/10 group-hover:border-orange-200 dark:group-hover:border-white/[0.1] transition-colors">
+                                                    <Gift size={14} className="text-orange-600 dark:text-orange-500" /> {c.loyaltyPoints || 0} PTS
                                                 </div>
-                                                <p className="text-[7px] text-gray-300 font-bold mt-1 uppercase">Fidelidade</p>
                                             </div>
-                                            <ChevronRight size={14} className="text-gray-200 group-hover:text-blue-500 transition-colors" />
+                                            <ChevronRight size={24} className="text-gray-300 dark:text-[#333] group-hover:text-orange-600 dark:group-hover:text-orange-500 transition-colors" />
                                         </div>
                                     </button>
                                 ))}
@@ -346,20 +353,19 @@ export default function CustomerModal({ onClose, onSelect, initialRegister = fal
     );
 }
 
-function FormInput({ label, value, onChange, placeholder, compulsory, icon }: any) {
+function FormInput({ label, value, onChange, placeholder, compulsory }: any) {
     return (
-        <div className="space-y-1.5 text-left">
-            <label className="text-[9px] font-bold text-gray-400 tracking-wider ml-1">{label}</label>
-            <div className="relative group">
-                {icon && <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-blue-500 transition-colors">{icon}</div>}
-                <input
-                    className={`w-full bg-gray-50 border border-gray-100 rounded-xl ${icon ? 'pl-9' : 'px-3'} py-2.5 text-xs font-bold placeholder:text-gray-200 outline-none focus:bg-white focus:border-blue-500 transition-all`}
-                    value={value}
-                    onChange={e => onChange(e.target.value)}
-                    placeholder={placeholder}
-                    required={compulsory}
-                />
-            </div>
+        <div className="space-y-2 text-left flex flex-col">
+            <label className="text-[10px] font-bold uppercase tracking-widest ml-1 text-gray-600 dark:text-[#777]">
+                {label} {compulsory && <span className="text-red-500">*</span>}
+            </label>
+            <input
+                className="w-full rounded-xl px-5 py-4 text-sm font-bold outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 dark:focus:ring-orange-500/20 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-white/[0.06] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#444] shadow-inner dark:shadow-none"
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                placeholder={placeholder}
+                required={compulsory}
+            />
         </div>
     );
 }

@@ -115,140 +115,101 @@ export default function SalesView() {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-white">
+        <div className="h-full flex flex-col bg-[#0c0c0c] text-white">
             {/* Header */}
-            <div className="bg-white border-b p-6">
-                <h1 className="text-xl font-semibold text-gray-800 mb-4">Histórico de Vendas</h1>
-
-                {/* Filtros */}
-                <div className="flex gap-3 flex-wrap">
-                    <div className="flex-1 min-w-[200px]">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                            <input
-                                type="text"
-                                placeholder="Buscar por cliente ou valor..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500"
-                            />
-                        </div>
+            <div className="border-b border-white/[0.05] px-5 py-3">
+                <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                        <h1 className="text-sm font-semibold text-white">Histórico</h1>
+                        <p className="text-[9px] text-[#444] font-medium uppercase tracking-widest mt-0.5">{filteredSales.length} vendas</p>
                     </div>
-
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setFilterMethod('all')}
-                            className={`px-4 py-2 rounded-lg font-medium ${filterMethod === 'all'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]" size={13} />
+                        <input
+                            type="text"
+                            placeholder="Buscar..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="bg-[#111] border border-white/[0.06] rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder:text-[#333] outline-none focus:border-orange-500/50 transition-all w-48"
+                        />
+                    </div>
+                    <div className="flex gap-1.5">
+                        {(['all', 'pix', 'card', 'money'] as const).map(method => (
+                            <button
+                                key={method}
+                                onClick={() => setFilterMethod(method)}
+                                className={`px-3 py-1.5 rounded-md text-[10px] font-semibold transition-all flex items-center gap-1 ${
+                                    filterMethod === method
+                                        ? 'bg-orange-600 text-white'
+                                        : 'bg-white/5 text-[#555] hover:text-[#999] hover:bg-white/[0.07]'
                                 }`}
-                        >
-                            Todos
-                        </button>
-                        <button
-                            onClick={() => setFilterMethod('pix')}
-                            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${filterMethod === 'pix'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                                }`}
-                        >
-                            <QrCode size={16} /> PIX
-                        </button>
-                        <button
-                            onClick={() => setFilterMethod('card')}
-                            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${filterMethod === 'card'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                                }`}
-                        >
-                            <CreditCard size={16} /> Cartão
-                        </button>
-                        <button
-                            onClick={() => setFilterMethod('money')}
-                            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${filterMethod === 'money'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                                }`}
-                        >
-                            <Banknote size={16} /> Dinheiro
-                        </button>
+                            >
+                                {method === 'all' && 'Todos'}
+                                {method === 'pix' && <><QrCode size={11} /> PIX</>}
+                                {method === 'card' && <><CreditCard size={11} /> Cartão</>}
+                                {method === 'money' && <><Banknote size={11} /> Dinheiro</>}
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
 
             {/* Lista de vendas */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1a1a1a transparent' }}>
                 {isLoading ? (
-                    <div className="flex items-center justify-center h-full">
-                        <div className="text-gray-400">Carregando...</div>
+                    <div className="flex items-center justify-center h-full text-[#444] gap-2 text-xs">
+                        <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                        Carregando...
                     </div>
                 ) : filteredSales.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                        <div className="text-gray-400">Nenhuma venda encontrada</div>
-                    </div>
+                    <div className="flex items-center justify-center h-full text-[#333] text-xs">Nenhuma venda encontrada</div>
                 ) : (
-                    <div className="grid gap-3">
+                    <div className="space-y-1.5">
                         {filteredSales.map(sale => (
-                            <div key={sale._id} className="bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-300">
+                            <div key={sale._id} className="bg-white/[0.03] border border-white/[0.05] rounded-lg p-3 hover:border-orange-500/20 transition-all">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
-                                            <Calendar size={14} />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 text-[9px] text-[#444] mb-1.5">
+                                            <Calendar size={11} />
                                             <span>{new Date(sale.date).toLocaleString('pt-BR')}</span>
+                                            {sale.customer && <span className="text-[#777] font-medium">{sale.customer.name}</span>}
                                         </div>
-
-                                        {sale.customer && (
-                                            <div className="text-sm text-gray-600 mb-2">
-                                                {sale.customer.name}
-                                            </div>
-                                        )}
-
-                                        <div className="flex items-center gap-2 flex-wrap">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
                                             {sale.payments.map((payment, idx) => (
                                                 <span
                                                     key={`${sale._id}-payment-${idx}`}
-                                                    className="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 rounded text-sm text-gray-700"
+                                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/[0.04] border border-white/[0.06] rounded text-[9px] text-[#777]"
                                                 >
                                                     {getPaymentIcon(payment.method)}
                                                     {formatMethod(payment.method)}
-                                                    <span className="font-medium">
-                                                        R$ {payment.amount.toFixed(2)}
-                                                    </span>
+                                                    <span className="font-semibold text-[#aaa]">R$ {payment.amount.toFixed(2)}</span>
                                                 </span>
                                             ))}
                                         </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-right">
-                                            <div className="text-xs text-gray-500">Total</div>
-                                            <div className="text-xl font-semibold text-gray-800">
-                                                R$ {sale.total.toFixed(2)}
+                                        {sale.items && sale.items.length > 0 && (
+                                            <div className="flex flex-wrap gap-x-2 mt-1.5">
+                                                {sale.items.map((item, idx) => (
+                                                    <span key={`${sale._id}-item-${idx}`} className="text-[9px] text-[#333]">
+                                                        {item.quantity}x {item.name}
+                                                    </span>
+                                                ))}
                                             </div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-3 ml-4 shrink-0">
+                                        <div className="text-right">
+                                            <div className="text-[9px] text-[#444]">Total</div>
+                                            <div className="text-base font-black text-orange-400">R$ {sale.total.toFixed(2)}</div>
                                         </div>
-
                                         <button
                                             onClick={() => handleReprint(sale)}
-                                            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                            className="p-2 bg-white/[0.04] border border-white/[0.06] text-[#555] rounded-lg hover:text-white hover:bg-orange-600 hover:border-orange-600 transition-all"
                                             title="Reimprimir"
                                         >
-                                            <Printer size={18} />
+                                            <Printer size={14} />
                                         </button>
                                     </div>
                                 </div>
-
-                                {/* Itens */}
-                                {sale.items && sale.items.length > 0 && (
-                                    <div className="mt-3 pt-3 border-t border-gray-100">
-                                        <div className="flex flex-wrap gap-2">
-                                            {sale.items.map((item, idx) => (
-                                                <span key={`${sale._id}-item-${idx}`} className="text-xs text-gray-500">
-                                                    {item.quantity}x {item.name}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         ))}
                     </div>

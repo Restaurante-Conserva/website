@@ -1,31 +1,22 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import {
-    LayoutGrid,
-    ShoppingCart,
-    Settings,
-    ShieldCheck,
-    User,
-    LogOut,
-    Plus,
-    X,
-    ClipboardList,
-    Wallet,
-    Loader2,
-    Lock,
-    KeyRound,
-    AlertCircle,
-    History
-} from 'lucide-react';
+import { Lock, ShieldCheck, Loader2, AlertCircle, KeyRound, X } from 'lucide-react';
+
 import POSView from '../../components/POSView';
 import TableView from '../../components/TableView';
 import AdminPanel from '../../components/AdminPanel';
 import CashierPanel from '../../components/CashierPanel';
 import FiadoPanel from '../../components/FiadoPanel';
 import SalesView from '../../components/SalesView';
+import POSSidebar from '../../components/POSSidebar';
+import { ThemeProvider, useTheme } from '../../context/ThemeContext';
+import { ToastProvider } from '../../context/ToastContext';
 
-export default function POSPage() {
+function POSApp() {
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
+
     const [employee, setEmployee] = useState<any>(null);
     const [view, setView] = useState<'pos' | 'tables' | 'admin' | 'cashier' | 'fiado' | 'sales'>('pos');
     const [isAuthenticating, setIsAuthenticating] = useState(true);
@@ -35,7 +26,6 @@ export default function POSPage() {
     const [cashSession, setCashSession] = useState<any>(null);
     const [isCheckingCash, setIsCheckingCash] = useState(true);
 
-    // Admin Protection
     const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
     const [adminPass, setAdminPass] = useState('');
     const [adminError, setAdminError] = useState(false);
@@ -44,16 +34,12 @@ export default function POSPage() {
         const saved = localStorage.getItem('logged_employee');
         if (saved) setEmployee(JSON.parse(saved));
         setIsAuthenticating(false);
-
         checkCashSession();
 
         const checkBridge = () => {
             fetch('http://localhost:7777/status')
                 .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'online') setBridgeStatus('online');
-                    else setBridgeStatus('offline');
-                })
+                .then(data => setBridgeStatus(data.status === 'online' ? 'online' : 'offline'))
                 .catch(() => setBridgeStatus('offline'));
         };
         checkBridge();
@@ -67,9 +53,7 @@ export default function POSPage() {
             const res = await fetch('/api/cash');
             const data = await res.json();
             setCashSession(data);
-            if (!data && view !== 'admin') {
-                setView('cashier');
-            }
+            if (!data && view !== 'admin') setView('cashier');
         } catch (e) {
             console.error(e);
         } finally {
@@ -91,7 +75,6 @@ export default function POSPage() {
                 localStorage.setItem('logged_employee', JSON.stringify(data));
                 setLoginError(false);
                 setPassword('');
-                // After login, check cash again
                 checkCashSession();
             } else {
                 setLoginError(true);
@@ -141,39 +124,51 @@ export default function POSPage() {
         }
     };
 
+    const bg = isDark ? 'bg-[#0c0c0c]' : 'bg-gray-50';
+    const cardBg = isDark ? 'bg-[#111] border-white/[0.06]' : 'bg-white border-gray-200';
+    const textPrimary = isDark ? 'text-white' : 'text-gray-900';
+    const textMuted = isDark ? 'text-[#444]' : 'text-gray-400';
+    const inputBg = isDark
+        ? 'bg-[#0a0a0a] border-white/[0.07] text-white focus:border-orange-500/70'
+        : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-orange-400';
+
+    /* ── Loading ── */
     if (isAuthenticating || isCheckingCash) return (
-        <div className="h-screen bg-white flex items-center justify-center">
-            <Loader2 className="animate-spin text-blue-600" size={32} />
+        <div className={`h-screen ${bg} flex items-center justify-center`}>
+            <Loader2 className="animate-spin text-orange-500" size={26} />
         </div>
     );
 
+    /* ── Login ── */
     if (!employee) {
         return (
-            <div className="h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-gray-100 p-8 flex flex-col items-center">
-                    <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center text-white mb-6 shadow-lg shadow-blue-200">
-                        <Lock size={32} />
+            <div className={`h-screen ${bg} flex items-center justify-center p-4`}>
+                <div className={`w-full max-w-[320px] ${cardBg} rounded-2xl border p-7 flex flex-col items-center gap-5`}>
+                    <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-900/30">
+                        <Lock size={18} className="text-white" />
                     </div>
-                    <h1 className="text-xl font-bold text-gray-800 mb-1">CONSERVA POS</h1>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-8">Identificação do Operador</p>
+                    <div className="text-center">
+                        <h1 className={`text-sm font-bold ${textPrimary}`}>CONSERVA POS</h1>
+                        <p className={`text-[10px] ${textMuted} mt-0.5 font-medium uppercase tracking-widest`}>Identificação do Operador</p>
+                    </div>
 
-                    <form onSubmit={handleLogin} className="w-full space-y-4">
+                    <form onSubmit={handleLogin} className="w-full flex flex-col gap-2.5">
                         <input
                             autoFocus
                             type="password"
                             value={password}
                             onChange={e => { setPassword(e.target.value); setLoginError(false); }}
-                            className={`w-full bg-gray-50 border ${loginError ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-xl px-4 py-3 text-center text-2xl font-bold outline-none focus:border-blue-500 transition-all`}
+                            className={`w-full border ${loginError ? 'border-red-500/50' : ''} ${inputBg}
+                                rounded-xl px-4 py-2.5 text-center text-xl font-bold outline-none transition-all`}
                             placeholder="••••"
                         />
-                        {loginError && <p className="text-center text-[10px] text-red-500 font-bold uppercase">Senha Inválida</p>}
-                        <button className="w-full bg-blue-600 text-white font-bold text-xs uppercase py-4 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
-                            Acessar Sistema
+                        {loginError && <p className="text-center text-[10px] text-red-500 font-medium">Senha inválida</p>}
+                        <button className="w-full bg-orange-600 text-white font-semibold text-[11px] uppercase tracking-wider py-2.5 rounded-xl hover:bg-orange-500 transition-all mt-1">
+                            Acessar
                         </button>
                     </form>
 
-                    <div className="w-full mt-8 pt-6 border-t border-gray-100">
-                        <p className="text-center text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-4">Novo por aqui?</p>
+                    <div className={`w-full pt-4 border-t ${isDark ? 'border-white/[0.04]' : 'border-gray-100'}`}>
                         <button
                             onClick={async () => {
                                 const pass = prompt("Senha de Primeiro Acesso:");
@@ -186,9 +181,10 @@ export default function POSPage() {
                                     alert("Senha Incorreta");
                                 }
                             }}
-                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition-all"
+                            className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed text-[10px] font-medium uppercase tracking-widest transition-all
+                                ${isDark ? 'border-white/[0.07] text-[#444] hover:border-orange-500/40 hover:text-orange-500' : 'border-gray-200 text-gray-400 hover:border-orange-400 hover:text-orange-500'}`}
                         >
-                            <ShieldCheck size={14} />
+                            <ShieldCheck size={13} />
                             Configurar Primeiro Acesso
                         </button>
                     </div>
@@ -197,116 +193,75 @@ export default function POSPage() {
         );
     }
 
-    const menu = [
-        { id: 'pos', label: 'Vendas', icon: <ShoppingCart size={20} /> },
-        { id: 'tables', label: 'Mesas', icon: <LayoutGrid size={20} /> },
-        { id: 'sales', label: 'Histórico', icon: <History size={20} /> },
-        { id: 'cashier', label: 'Caixa', icon: <Wallet size={20} /> },
-    ];
-
     const isCashRequired = !cashSession && view !== 'admin';
 
+    /* ── Main App ── */
     return (
-        <div className="flex h-screen bg-white text-gray-800 font-sans text-sm overflow-hidden">
-            {/* Nav Lateral */}
-            <aside className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 z-30 shrink-0">
-                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-lg mb-8 uppercase">C</div>
+        <div className={`flex h-screen ${isDark ? 'text-white' : 'text-gray-900'} font-sans text-sm overflow-hidden ${bg}`}>
+            <POSSidebar
+                view={view}
+                setView={setView}
+                employee={employee}
+                cashSession={cashSession}
+                onAdminAccess={handleAdminAccess}
+                onLogout={handleLogout}
+            />
 
-                <nav className="flex-1 flex flex-col gap-4">
-                    {menu.map(item => (
-                        <button
-                            key={item.id}
-                            disabled={isCashRequired && item.id !== 'cashier'}
-                            onClick={() => setView(item.id as any)}
-                            className={`p-3 rounded-lg transition-all flex items-center justify-center ${view === item.id ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'} ${isCashRequired && item.id !== 'cashier' ? 'opacity-20 cursor-not-allowed' : ''}`}
-                            title={item.label}
-                        >
-                            {item.icon}
-                        </button>
-                    ))}
-
-                    <button
-                        onClick={() => setView('fiado')}
-                        className={`p-3 rounded-lg transition-all flex items-center justify-center ${view === 'fiado' ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
-                        title="Gerenciar Fiado"
-                    >
-                        <ClipboardList size={20} />
-                    </button>
-
-                    {employee?.role === 'admin' && (
-                        <button
-                            onClick={handleAdminAccess}
-                            className={`p-3 rounded-lg transition-all flex items-center justify-center ${view === 'admin' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-600'}`}
-                            title="Administração"
-                        >
-                            <ShieldCheck size={20} />
-                        </button>
-                    )}
-                </nav>
-
-                <div className="flex flex-col items-center gap-4">
-                    <button onClick={handleLogout} className="p-3 text-gray-300 hover:text-red-500 transition-colors" title="Sair">
-                        <LogOut size={20} />
-                    </button>
-                    <div className="flex flex-col items-center group relative cursor-help">
-                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100">
-                            <User size={16} />
-                        </div>
-                        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-[9px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                            {employee.name}
-                        </div>
-                    </div>
-                </div>
-            </aside>
-
-            {/* Main Content Area */}
-            <main className="flex-1 flex flex-col relative overflow-hidden bg-white">
-                {/* Status da Impressora */}
-                <div className="absolute top-3 right-4 flex items-center gap-1.5 z-50 bg-white/80 backdrop-blur px-2 py-1 rounded-full border border-gray-100 text-[9px] text-gray-400">
-                    <div className={`w-1.5 h-1.5 rounded-full ${bridgeStatus === 'online' ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
-                    <span className="font-bold opacity-60">IMP: {bridgeStatus === 'online' ? 'OK' : 'OFF'}</span>
-                </div>
-
+            <main className="flex-1 flex flex-col relative overflow-hidden">
                 {isCashRequired && (
-                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-600 text-white rounded-full text-[10px] font-bold uppercase flex items-center gap-2 shadow-lg animate-bounce">
-                        <AlertCircle size={14} />
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 px-3 py-1.5 bg-red-600 text-white rounded-lg text-[10px] font-medium uppercase flex items-center gap-2 shadow-lg">
+                        <AlertCircle size={13} />
                         Abra o caixa para habilitar as funções de venda
                     </div>
                 )}
 
-                {view === 'pos' && <POSView />}
-                {view === 'tables' && <TableView />}
-                {view === 'sales' && <SalesView />}
-                {view === 'admin' && <AdminPanel onClose={() => { setView('pos'); checkCashSession(); }} />}
+                {view === 'pos'     && <POSView bridgeStatus={bridgeStatus} />}
+                {view === 'tables'  && <TableView />}
+                {view === 'sales'   && <SalesView />}
+                {view === 'admin'   && <AdminPanel onClose={() => { setView('pos'); checkCashSession(); }} />}
                 {view === 'cashier' && <CashierPanel onOpen={checkCashSession} employee={employee} />}
-                {view === 'fiado' && <FiadoPanel setView={setView} />}
+                {view === 'fiado'   && <FiadoPanel setView={setView} />}
             </main>
 
-            {/* Admin Password Modal */}
+            {/* Admin Modal */}
             {isAdminModalOpen && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-xs bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 animate-in zoom-in duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <div className="flex items-center gap-2 text-gray-800 font-bold text-xs uppercase">
-                                <KeyRound size={16} className="text-blue-600" /> Acesso Restrito
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                    <div className={`w-full max-w-xs ${cardBg} rounded-2xl border p-6`}>
+                        <div className="flex justify-between items-center mb-5">
+                            <div className={`flex items-center gap-2 ${textPrimary} font-semibold text-xs uppercase tracking-wider`}>
+                                <KeyRound size={13} className="text-orange-500" />
+                                Acesso Restrito
                             </div>
-                            <button onClick={() => setIsAdminModalOpen(false)} className="text-gray-300 hover:text-gray-500"><X size={20} /></button>
+                            <button onClick={() => setIsAdminModalOpen(false)} className={`${textMuted} hover:text-white transition-colors`}>
+                                <X size={16} />
+                            </button>
                         </div>
-                        <form onSubmit={verifyAdmin} className="space-y-4">
+                        <form onSubmit={verifyAdmin} className="space-y-3">
                             <input
                                 autoFocus
                                 type="password"
                                 value={adminPass}
                                 onChange={e => { setAdminPass(e.target.value); setAdminError(false); }}
-                                className={`w-full bg-gray-50 border ${adminError ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-xl px-4 py-3 text-center text-xl font-bold outline-none focus:border-blue-500`}
+                                className={`w-full border ${adminError ? 'border-red-500/50' : ''} ${inputBg}
+                                    rounded-xl px-4 py-2.5 text-center text-lg font-bold outline-none transition-all`}
                                 placeholder="Senha Admin"
                             />
-                            {adminError && <p className="text-center text-[9px] text-red-500 font-bold uppercase italic">Acesso Negado</p>}
-                            <button className="w-full bg-gray-900 text-white font-bold text-[10px] uppercase py-3 rounded-xl hover:bg-black transition-all">Confirmar</button>
+                            {adminError && <p className="text-center text-[9px] text-red-500 font-medium">Acesso negado</p>}
+                            <button className="w-full bg-orange-600 text-white font-semibold text-[11px] uppercase tracking-wider py-2.5 rounded-xl hover:bg-orange-500 transition-all">
+                                Confirmar
+                            </button>
                         </form>
                     </div>
                 </div>
             )}
         </div>
+    );
+}
+
+export default function POSPage() {
+    return (
+        <ThemeProvider>
+            <POSApp />
+        </ThemeProvider>
     );
 }
