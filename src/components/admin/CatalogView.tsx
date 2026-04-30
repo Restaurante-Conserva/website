@@ -24,7 +24,7 @@ export default function CatalogView({
     const [newCatImage, setNewCatImage] = useState('');
     const [isCreatingCat, setIsCreatingCat] = useState(false);
 
-    const [newProd, setNewProd] = useState({ name: '', price: '', categoryId: '', stock: '', image: '' });
+    const [newProd, setNewProd] = useState({ name: '', price: '', category: '', stock: '', image: '' });
     const [isCreatingProd, setIsCreatingProd] = useState(false);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, target: 'cat' | 'prod') => {
@@ -56,7 +56,7 @@ export default function CatalogView({
     };
 
     const handleAddProduct = async () => {
-        if (!newProd.name || !newProd.price || !newProd.categoryId) return;
+        if (!newProd.name || !newProd.price || !newProd.category) return;
         setIsCreatingProd(true);
         try {
             await fetch('/api/catalog', {
@@ -71,7 +71,7 @@ export default function CatalogView({
                     }
                 })
             });
-            setNewProd({ name: '', price: '', categoryId: '', stock: '', image: '' });
+            setNewProd({ name: '', price: '', category: '', stock: '', image: '' });
             await refreshProducts();
         } finally {
             setIsCreatingProd(false);
@@ -121,7 +121,7 @@ export default function CatalogView({
 
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {categories.map(cat => (
-                        <div key={cat.id || cat._id} className="bg-white dark:bg-[#0a0a0a] border border-gray-100 dark:border-[#1a1a1a] rounded-lg p-3 flex flex-row md:flex-col gap-2 group hover:border-gray-200 dark:hover:border-[#333] items-center justify-center text-center relative overflow-hidden transition-all shadow-sm dark:shadow-none h-20">
+                        <div key={cat._id} className="bg-white dark:bg-[#0a0a0a] border border-gray-100 dark:border-[#1a1a1a] rounded-lg p-3 flex flex-row md:flex-col gap-2 group hover:border-gray-200 dark:hover:border-[#333] items-center justify-center text-center relative overflow-hidden transition-all shadow-sm dark:shadow-none h-20">
                             <div className="w-8 h-8 bg-gray-50 dark:bg-black rounded-md flex items-center justify-center overflow-hidden border border-gray-100 dark:border-[#222] group-hover:border-orange-200 dark:group-hover:border-orange-500/50 transition-all shrink-0">
                                 {cat.image ? (
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -133,13 +133,13 @@ export default function CatalogView({
                             <span className="text-xs font-medium text-gray-700 dark:text-[#888] group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors line-clamp-1">{cat.name}</span>
                             
                             <div className="absolute top-1 left-1 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-all translate-x-[-5px] group-hover:translate-x-0">
-                                <button onClick={() => onReorderCategory(cat.id ?? cat._id ?? '', 'up')} className="p-0.5 bg-gray-50 dark:bg-black text-gray-500 dark:text-[#666] hover:text-gray-900 dark:hover:text-white rounded border border-gray-200 dark:border-[#222] hover:border-gray-300 dark:hover:border-[#333] cursor-pointer"><ChevronUp size={12} /></button>
-                                <button onClick={() => onReorderCategory(cat.id ?? cat._id ?? '', 'down')} className="p-0.5 bg-gray-50 dark:bg-black text-gray-500 dark:text-[#666] hover:text-gray-900 dark:hover:text-white rounded border border-gray-200 dark:border-[#222] hover:border-gray-300 dark:hover:border-[#333] cursor-pointer"><ChevronDown size={12} /></button>
+                                <button onClick={() => onReorderCategory(cat._id ?? '', 'up')} className="p-0.5 bg-gray-50 dark:bg-black text-gray-500 dark:text-[#666] hover:text-gray-900 dark:hover:text-white rounded border border-gray-200 dark:border-[#222] hover:border-gray-300 dark:hover:border-[#333] cursor-pointer"><ChevronUp size={12} /></button>
+                                <button onClick={() => onReorderCategory(cat._id ?? '', 'down')} className="p-0.5 bg-gray-50 dark:bg-black text-gray-500 dark:text-[#666] hover:text-gray-900 dark:hover:text-white rounded border border-gray-200 dark:border-[#222] hover:border-gray-300 dark:hover:border-[#333] cursor-pointer"><ChevronDown size={12} /></button>
                             </div>
 
                             <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-all translate-x-[5px] group-hover:translate-x-0">
                                 <button onClick={() => onEditCategory(cat)} className="p-1 bg-gray-50 dark:bg-black text-gray-500 dark:text-[#666] hover:text-gray-900 dark:hover:text-white rounded border border-gray-200 dark:border-[#222] hover:border-gray-300 dark:hover:border-[#333] cursor-pointer"><Pencil size={12} /></button>
-                                <button onClick={() => onDelete('category', cat.id ?? cat._id ?? '')} className="p-1 bg-gray-50 dark:bg-black text-gray-500 dark:text-[#666] hover:text-red-600 dark:hover:text-red-500 rounded border border-gray-200 dark:border-[#222] hover:border-red-200 dark:hover:border-[#333] cursor-pointer"><Trash2 size={12} /></button>
+                                <button onClick={() => onDelete('category', cat._id ?? '')} className="p-1 bg-gray-50 dark:bg-black text-gray-500 dark:text-[#666] hover:text-red-600 dark:hover:text-red-500 rounded border border-gray-200 dark:border-[#222] hover:border-red-200 dark:hover:border-[#333] cursor-pointer"><Trash2 size={12} /></button>
                             </div>
                         </div>
                     ))}
@@ -158,7 +158,7 @@ export default function CatalogView({
                             const headers = ['Nome', 'Categoria', 'Preço (R$)', 'Estoque'];
                             let csv = '\uFEFF' + headers.join(';') + '\n';
                             products.forEach(p => {
-                                const catName = categories.find(c => (c.id || c._id) === p.categoryId)?.name || 'Avulso';
+                                const catName = categories.find(c => c._id === p.category)?.name || 'Avulso';
                                 const row = [
                                     p.name,
                                     catName,
@@ -192,9 +192,9 @@ export default function CatalogView({
                     </div>
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Categoria</label>
-                        <select className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-[#222] rounded-md px-2 py-1.5 text-xs font-medium outline-none cursor-pointer text-gray-900 dark:text-gray-100" value={newProd.categoryId} onChange={e => setNewProd({...newProd, categoryId: e.target.value})}>
+                        <select className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-[#222] rounded-md px-2 py-1.5 text-xs font-medium outline-none cursor-pointer text-gray-900 dark:text-gray-100" value={newProd.category} onChange={e => setNewProd({...newProd, category: e.target.value})}>
                             <option value="">Selecionar...</option>
-                            {categories.map(c => <option key={c.id || c._id} value={c.id || c._id}>{c.name}</option>)}
+                            {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                         </select>
                     </div>
                     <div className="space-y-1.5">
@@ -228,7 +228,7 @@ export default function CatalogView({
                         </thead>
                         <tbody className="divide-y divide-gray-50 dark:divide-[#1a1a1a]">
                             {products.map(p => (
-                                <tr key={p.id || p._id} className="hover:bg-gray-50/50 dark:hover:bg-[#111] group transition-colors">
+                                <tr key={p._id} className="hover:bg-gray-50/50 dark:hover:bg-[#111] group transition-colors">
                                     <td className="px-4 py-2.5">
                                         <div className="flex items-center gap-3">
                                             <div className="w-7 h-7 rounded-md bg-gray-50 dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#222] overflow-hidden flex items-center justify-center group-hover:border-orange-200 dark:group-hover:border-orange-500/30 transition-all">
@@ -240,13 +240,13 @@ export default function CatalogView({
                                     </td>
                                     <td className="px-4 py-2.5">
                                         <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#1a1a1a] px-1.5 py-0.5 rounded border border-gray-100 dark:border-[#222]">
-                                            {categories.find(c => (c.id || c._id) === p.categoryId)?.name || 'Avulso'}
+                                            {categories.find(c => c._id === p.category)?.name || 'Avulso'}
                                         </span>
                                     </td>
                                     <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100 tabular-nums">R$ {p.price.toFixed(2)}</td>
                                     <td className="px-4 py-2.5 text-right flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 h-[46px]">
                                         <button onClick={() => onEditProduct(p)} className="p-1.5 bg-gray-50 dark:bg-black text-gray-500 dark:text-[#666] hover:text-gray-900 dark:hover:text-white rounded-md border border-gray-200 dark:border-[#222] hover:border-gray-300 dark:hover:border-[#333] cursor-pointer"><Pencil size={12} /></button>
-                                        <button onClick={() => onDelete('product', p.id ?? p._id ?? '')} className="p-1.5 bg-gray-50 dark:bg-black text-gray-500 dark:text-[#666] hover:text-red-600 dark:hover:text-red-500 rounded-md border border-gray-200 dark:border-[#222] hover:border-red-200 dark:hover:border-[#333] cursor-pointer"><Trash2 size={12} /></button>
+                                        <button onClick={() => onDelete('product', p._id ?? '')} className="p-1.5 bg-gray-50 dark:bg-black text-gray-500 dark:text-[#666] hover:text-red-600 dark:hover:text-red-500 rounded-md border border-gray-200 dark:border-[#222] hover:border-red-200 dark:hover:border-[#333] cursor-pointer"><Trash2 size={12} /></button>
                                     </td>
                                 </tr>
                             ))}

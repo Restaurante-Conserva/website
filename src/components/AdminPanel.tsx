@@ -42,8 +42,8 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     const [isSaving, setIsSaving] = useState(false);
 
     // Optimized Refresh Trigger (only fetch what is needed when view changes or action happens)
-    const handleViewChange = (newView: 'stats' | 'catalog' | 'inventory' | 'employees' | 'sales' | 'customers' | 'fiscal' | 'reports') => {
-        setView(newView);
+    const handleViewChange = (newView: string) => {
+        setView(newView as any);
         if (newView === 'stats') refreshSales();
         if (newView === 'catalog') { refreshCategories(); refreshProducts(); }
         if (newView === 'customers') refreshCustomers();

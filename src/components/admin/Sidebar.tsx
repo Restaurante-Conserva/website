@@ -7,7 +7,7 @@ import {
 
 interface SidebarProps {
     currentView: string;
-    setView: (view: any) => void;
+    setView: (view: string) => void;
 }
 
 const menuItems = [
@@ -24,18 +24,6 @@ const menuItems = [
 export default function Sidebar({ currentView, setView }: SidebarProps) {
     return (
         <aside className="w-56 border-r border-gray-100 dark:border-[#1a1a1a] flex flex-col bg-white dark:bg-[#0a0a0a] h-full shrink-0 transition-colors">
-            {/* Brand */}
-            <div className="px-6 py-7 border-b border-gray-100 dark:border-[#1a1a1a]">
-                <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center font-semibold text-lg text-white shadow-md">
-                        C
-                    </div>
-                    <div>
-                        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Conserva</h2>
-                        <p className="text-xs text-orange-600 dark:text-orange-500/70 font-medium">Management</p>
-                    </div>
-                </div>
-            </div>
 
             {/* Nav */}
             <nav className="flex-1 px-3 py-4 space-y-0.5">
@@ -61,19 +49,6 @@ export default function Sidebar({ currentView, setView }: SidebarProps) {
                     );
                 })}
             </nav>
-
-            {/* Footer */}
-            <div className="p-5 border-t border-gray-100 dark:border-[#1a1a1a]">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#111] border border-gray-100 dark:border-[#1a1a1a]">
-                    <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
-                        A
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">Admin</p>
-                        <p className="text-xs text-gray-400 dark:text-[#555] font-normal">v2.5.0</p>
-                    </div>
-                </div>
-            </div>
         </aside>
     );
 }

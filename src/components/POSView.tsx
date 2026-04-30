@@ -8,18 +8,8 @@ import {
 import PaymentModal from './PaymentModal';
 import CustomerModal from './CustomerModal';
 import DebtModal from './DebtModal';
-import { useGlobal } from '../context/GlobalContext';
+import { useGlobal, Product } from '../context/GlobalContext';
 import { useToast } from '../context/ToastContext';
-
-interface Product {
-    id: string;
-    _id?: string;
-    name: string;
-    price: number;
-    categoryId: string;
-    stock: number | null;
-    image?: string;
-}
 
 interface POSViewProps {
     bridgeStatus?: 'online' | 'offline';
@@ -42,22 +32,24 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         setVisibleCount(40);
         if (scrollRef.current) scrollRef.current.scrollTop = 0;
     }, [search, selectedCategory]);
 
     useEffect(() => {
         const saved = localStorage.getItem('logged_employee');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         if (saved) setEmployee(JSON.parse(saved));
     }, []);
 
     const addToCart = (p: Product) => {
-        const id = p.id || p._id;
+        const id = p._id;
         if (!id) return;
-        if (p.stock !== null && p.stock <= 0) { showToast('Produto fora de estoque', 'error'); return; }
+        if (p.stock != null && p.stock <= 0) { showToast('Produto fora de estoque', 'error'); return; }
         setCart(prev => {
-            const existing = prev.find(item => item.id === id);
-            if (existing) return prev.map(item => item.id === id ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price } : item);
+            const existing = prev.find(item => item._id === id);
+            if (existing) return prev.map(item => item._id === id ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price } : item);
             return [...prev, { id, name: p.name, price: p.price, quantity: 1, total: p.price }];
         });
     };
@@ -123,7 +115,7 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
     };
 
     const filteredProducts = useMemo(() => products.filter(p =>
-        (selectedCategory ? p.categoryId === selectedCategory : true) &&
+        (selectedCategory ? p.category === selectedCategory : true) &&
         p.name.toLowerCase().includes(search.toLowerCase())
     ), [products, selectedCategory, search]);
 
@@ -182,9 +174,9 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                     </button>
                     {categories.map(cat => (
                         <button
-                            key={cat.id || cat._id}
-                            onClick={() => setSelectedCategory(cat.id || (cat._id as string))}
-                            className={`px-3 py-1 rounded-md text-[10px] font-semibold whitespace-nowrap transition-all ${(selectedCategory === cat.id || selectedCategory === cat._id) ? 'bg-orange-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-[#555] hover:bg-gray-200 dark:hover:bg-white/[0.07]'}`}
+                            key={cat._id}
+                            onClick={() => setSelectedCategory(cat._id)}
+                            className={`px-3 py-1 rounded-md text-[10px] font-semibold whitespace-nowrap transition-all ${(selectedCategory === cat._id) ? 'bg-orange-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-[#555] hover:bg-gray-200 dark:hover:bg-white/[0.07]'}`}
                         >
                             {cat.name}
                         </button>
@@ -211,7 +203,7 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                         <>
                             {visibleProducts.map(p => (
                                 <button
-                                    key={p.id || p._id}
+                                    key={p._id}
                                     onClick={() => addToCart(p)}
                                     className="group bg-white dark:bg-[#111] shadow-sm dark:shadow-none border border-gray-100 dark:border-white/[0.05] rounded-xl flex flex-col transition-all hover:border-orange-500/40 hover:shadow-md dark:hover:bg-[#151515] overflow-hidden relative"
                                 >
@@ -221,7 +213,7 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                                         ) : (
                                             <Utensils size={22} className="text-gray-300 dark:text-[#2a2a2a] group-hover:text-orange-500/40 transition-colors" />
                                         )}
-                                        {p.stock !== null && p.stock <= 0 && (
+                                        {p.stock != null && p.stock <= 0 && (
                                             <div className="absolute inset-0 bg-white/80 dark:bg-black/60 backdrop-blur-[1px] flex items-center justify-center">
                                                 <span className="text-[9px] font-bold text-red-600 dark:text-red-400 uppercase border border-red-500/30 bg-red-100 dark:bg-red-500/10 px-2 py-0.5 rounded">Sem Estoque</span>
                                             </div>
@@ -231,7 +223,7 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                                         <h3 className="text-[10px] font-semibold text-gray-800 dark:text-[#bbb] leading-tight line-clamp-2 text-left h-[2.4em]">{p.name}</h3>
                                         <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-100 dark:border-transparent">
                                             <p className="text-[11px] font-bold text-orange-600 dark:text-orange-400">R$ {(p.price || 0).toFixed(2)}</p>
-                                            {p.stock !== null && <span className={`text-[8px] font-bold ${p.stock <= 5 ? 'text-red-500' : 'text-gray-500 dark:text-[#555]'}`}>{p.stock}un</span>}
+                                            {p.stock != null && <span className={`text-[8px] font-bold ${p.stock <= 5 ? 'text-red-500' : 'text-gray-500 dark:text-[#555]'}`}>{p.stock}un</span>}
                                         </div>
                                     </div>
                                 </button>
@@ -373,7 +365,6 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
             {/* Modals */}
             {isCustomerModalOpen && (
                 <CustomerModal
-                    initialRegister={customerModalMode === 'register'}
                     showDebtorsOnly={showDebtorsOnly}
                     onClose={() => setIsCustomerModalOpen(false)}
                     onSelect={(c) => {
@@ -387,20 +378,6 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                 <DebtModal
                     customer={selectedCustomer}
                     onClose={() => setIsDebtModalOpen(false)}
-                    onUpdate={async () => {
-                        await refreshCustomers();
-                        if (selectedCustomer.cpf) {
-                            const res = await fetch(`/api/customers?cpf=${selectedCustomer.cpf}`);
-                            if (res.ok) setSelectedCustomer(await res.json());
-                        } else {
-                            const res = await fetch('/api/customers');
-                            if (res.ok) {
-                                const all = await res.json();
-                                const updated = all.find((c: any) => c._id === selectedCustomer._id || c.id === selectedCustomer.id);
-                                if (updated) setSelectedCustomer(updated);
-                            }
-                        }
-                    }}
                 />
             )}
             {isPaymentOpen && (

@@ -3,31 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Download, Filter, ChevronDown, ChevronRight, Calendar, X, FileSpreadsheet, Loader2, Eye } from 'lucide-react';
 
-interface PaymentEntry {
-    method: string;
-    amount: number;
-}
-
-interface SaleItem {
-    name?: string;
-    productName?: string;
-    quantity?: number;
-    price?: number;
-    volume?: string;
-    unit?: string;
-}
-
-interface Sale {
-    id?: string;
-    _id?: string;
-    date?: string;
-    total?: number;
-    customer?: string;
-    customerName?: string;
-    employee?: string;
-    items?: SaleItem[];
-    payments?: PaymentEntry[];
-}
+import { Sale, Payment, SaleItem } from '../../context/GlobalContext';
 
 interface SalesViewProps {
     sales: Sale[];
@@ -103,7 +79,7 @@ export default function SalesView({ sales, onSelectSale }: SalesViewProps) {
             const query = search.toLowerCase();
             if (query) {
                 const matchCustomer = (s.customerName || '').toLowerCase().includes(query);
-                const matchId = (s.id || s._id || '').toLowerCase().includes(query);
+                const matchId = (s._id || '').toLowerCase().includes(query);
                 const matchEmployee = (s.employee || '').toLowerCase().includes(query);
                 const matchDate = saleDate ? saleDate.toLocaleDateString('pt-BR').includes(query) : false;
                 if (!matchCustomer && !matchId && !matchEmployee && !matchDate) return false;
@@ -116,7 +92,7 @@ export default function SalesView({ sales, onSelectSale }: SalesViewProps) {
 
             if (productFilter) {
                 const hasProduct = (s.items || []).some(i =>
-                    (i.name || i.productName || '').toLowerCase().includes(productFilter.toLowerCase())
+                    (i.name || '').toLowerCase().includes(productFilter.toLowerCase())
                 );
                 if (!hasProduct) return false;
             }
@@ -167,7 +143,7 @@ export default function SalesView({ sales, onSelectSale }: SalesViewProps) {
                 if (query) {
                     const saleDate = s.date ? new Date(s.date) : null;
                     const matchCustomer = (s.customerName || '').toLowerCase().includes(query);
-                    const matchId = (s.id || s._id || '').toLowerCase().includes(query);
+                    const matchId = (s._id || '').toLowerCase().includes(query);
                     const matchEmployee = (s.employee || '').toLowerCase().includes(query);
                     const matchDate = saleDate ? saleDate.toLocaleDateString('pt-BR').includes(query) : false;
                     if (!matchCustomer && !matchId && !matchEmployee && !matchDate) return false;
@@ -177,7 +153,7 @@ export default function SalesView({ sales, onSelectSale }: SalesViewProps) {
                     if (!hasMeth) return false;
                 }
                 if (productFilter) {
-                    const hasProduct = (s.items || []).some(i => (i.name || i.productName || '').toLowerCase().includes(productFilter.toLowerCase()));
+                    const hasProduct = (s.items || []).some(i => (i.name || '').toLowerCase().includes(productFilter.toLowerCase()));
                     if (!hasProduct) return false;
                 }
                 return true;
@@ -198,7 +174,7 @@ export default function SalesView({ sales, onSelectSale }: SalesViewProps) {
                     const d = sale.date ? new Date(sale.date) : new Date();
                     const data = d.toLocaleDateString('pt-BR');
                     const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    const id = sale.id || sale._id || '';
+                    const id = sale._id || '';
                     const operador = sale.employee || 'Sistema';
                     const cliente = sale.customerName || 'Venda Avulsa';
                     const totalVenda = (sale.total || 0).toFixed(2).replace('.', ',');
@@ -213,8 +189,8 @@ export default function SalesView({ sales, onSelectSale }: SalesViewProps) {
                             isFirst ? hora : '', 
                             isFirst ? operador : '', 
                             isFirst ? cliente : '',
-                            item ? (item.name || item.productName || 'Item') : 'N/A',
-                            item ? (item.volume || item.unit || '—') : '—',
+                            item ? (item.name || 'Item') : 'N/A',
+                            item ? (item.volume || '—') : '—',
                             item ? String(item.quantity || 1) : '—',
                             item ? (item.price || 0).toFixed(2).replace('.', ',') : '—',
                             item ? ((item.price || 0) * (item.quantity || 1)).toFixed(2).replace('.', ',') : '—',
@@ -232,11 +208,11 @@ export default function SalesView({ sales, onSelectSale }: SalesViewProps) {
                 
                 exportSet.forEach(sale => {
                     (sale.items || []).forEach(item => {
-                        const key = `${item.name || item.productName}-${item.volume || item.unit}`;
+                        const key = `${item.name}-${item.volume}`;
                         if (!productMap[key]) {
                             productMap[key] = { 
-                                name: item.name || item.productName || 'Produto', 
-                                volume: item.volume || item.unit || '—', 
+                                name: item.name || 'Produto', 
+                                volume: item.volume || '—', 
                                 qty: 0, 
                                 total: 0 
                             };
@@ -459,7 +435,7 @@ export default function SalesView({ sales, onSelectSale }: SalesViewProps) {
                                 </td>
                             </tr>
                         ) : filtered.map(sale => {
-                            const saleId = sale.id || sale._id || '';
+                            const saleId = sale._id || '';
                             const isExpanded = expandedSale === saleId;
                             const saleDate = sale.date ? new Date(sale.date) : null;
                             return (
@@ -546,10 +522,10 @@ export default function SalesView({ sales, onSelectSale }: SalesViewProps) {
                                                             {(sale.items || []).map((item, iIdx) => (
                                                                 <tr key={iIdx} className="text-xs border-b border-gray-50 dark:border-[#111] last:border-0">
                                                                     <td className="py-2 text-gray-800 dark:text-gray-200 font-bold">
-                                                                        {item.name || item.productName || 'Item'}
+                                                                        {item.name || 'Item'}
                                                                     </td>
                                                                     <td className="py-2 text-gray-500 dark:text-[#444] font-medium italic">
-                                                                        {item.volume || item.unit || '—'}
+                                                                        {item.volume || '—'}
                                                                     </td>
                                                                     <td className="py-2 text-center text-gray-700 dark:text-gray-300 font-bold tabular-nums">
                                                                         {item.quantity || 1}
