@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useGlobal, Product, Customer, Category } from '../context/GlobalContext';
+import { useGlobal, Product, Customer, Category, Sale } from '../context/GlobalContext';
 
 // Modular Components
 import Sidebar from './admin/Sidebar';
@@ -14,6 +14,7 @@ import EmployeesView from './admin/EmployeesView';
 import FiscalView from './admin/FiscalView';
 import SalesView from './admin/SalesView';
 import ReportsView from './admin/ReportsView';
+import SaleDetails from './admin/SaleDetails';
 
 // Shared Modals
 import { X, Loader2, Save, ImageIcon } from 'lucide-react';
@@ -35,6 +36,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     // UI Local State
     const [isRegisteringCustomer, setIsRegisteringCustomer] = useState(false);
     const [selectedCustomerForDebt, setSelectedCustomerForDebt] = useState<Customer | null>(null);
+    const [selectedSaleForDetails, setSelectedSaleForDetails] = useState<Sale | null>(null);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -42,7 +44,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     // Optimized Refresh Trigger (only fetch what is needed when view changes or action happens)
     const handleViewChange = (newView: 'stats' | 'catalog' | 'inventory' | 'employees' | 'sales' | 'customers' | 'fiscal' | 'reports') => {
         setView(newView);
-        // Optional: Trigger refresh based on view
         if (newView === 'stats') refreshSales();
         if (newView === 'catalog') { refreshCategories(); refreshProducts(); }
         if (newView === 'customers') refreshCustomers();
@@ -152,16 +153,26 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     )}
                     {view === 'employees' && <EmployeesView employees={employees} refreshEmployees={refreshEmployees} onDelete={(id) => handleDelete('employee', id)} />}
                     {view === 'fiscal' && <FiscalView config={config} refreshConfig={refreshConfig} />}
-                    {view === 'sales' && <SalesView sales={sales} />}
+                    {view === 'sales' && <SalesView sales={sales} onSelectSale={setSelectedSaleForDetails} />}
                     {view === 'reports' && <ReportsView sales={sales} />}
                 </main>
             </div>
 
             {/* Global Overlays */}
+            {selectedSaleForDetails && (
+                <SaleDetails 
+                    sale={selectedSaleForDetails} 
+                    onClose={() => setSelectedSaleForDetails(null)} 
+                />
+            )}
+
             {isRegisteringCustomer && (
                 <CustomerModal
                     onClose={() => setIsRegisteringCustomer(false)}
-                    onSelect={() => setIsRegisteringCustomer(false)}
+                    onSelect={() => {
+                        setIsRegisteringCustomer(false);
+                        refreshCustomers();
+                    }}
                 />
             )}
 

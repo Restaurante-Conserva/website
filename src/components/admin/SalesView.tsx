@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Download, Filter, ChevronDown, ChevronRight, Calendar, X, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Search, Download, Filter, ChevronDown, ChevronRight, Calendar, X, FileSpreadsheet, Loader2, Eye } from 'lucide-react';
 
 interface PaymentEntry {
     method: string;
@@ -31,6 +31,7 @@ interface Sale {
 
 interface SalesViewProps {
     sales: Sale[];
+    onSelectSale?: (sale: Sale) => void;
 }
 
 const METHOD_LABEL: Record<string, string> = {
@@ -40,7 +41,7 @@ const METHOD_LABEL: Record<string, string> = {
 
 const formatMethod = (method: string) => METHOD_LABEL[method?.toLowerCase()] || method;
 
-export default function SalesView({ sales }: SalesViewProps) {
+export default function SalesView({ sales, onSelectSale }: SalesViewProps) {
     const [search, setSearch] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
@@ -444,17 +445,18 @@ export default function SalesView({ sales }: SalesViewProps) {
                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest min-w-[130px]">Operador</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest min-w-[180px]">Pagamento</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-right min-w-[100px]">Total</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-right w-12">Ação</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 dark:divide-[#111]">
                         {filtered.length === 0 ? (
                             <tr>
-                                        <td colSpan={7} className="px-4 py-12 text-center">
-                                            <div className="flex flex-col items-center gap-2 opacity-40">
-                                                <FileSpreadsheet size={32} />
-                                                <p className="text-xs font-bold uppercase tracking-widest">Nenhuma venda no período</p>
-                                            </div>
-                                        </td>
+                                <td colSpan={8} className="px-4 py-12 text-center">
+                                    <div className="flex flex-col items-center gap-2 opacity-40">
+                                        <FileSpreadsheet size={32} />
+                                        <p className="text-xs font-bold uppercase tracking-widest">Nenhuma venda no período</p>
+                                    </div>
+                                </td>
                             </tr>
                         ) : filtered.map(sale => {
                             const saleId = sale.id || sale._id || '';
@@ -508,12 +510,24 @@ export default function SalesView({ sales }: SalesViewProps) {
                                                 R$ {(sale.total || 0).toFixed(2)}
                                             </span>
                                         </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // Prevent row expansion when clicking this button
+                                                    if(onSelectSale) onSelectSale(sale);
+                                                }}
+                                                className="p-1.5 bg-gray-100 dark:bg-[#1a1a1a] text-gray-500 dark:text-[#555] hover:text-gray-900 dark:hover:text-gray-100 rounded border border-gray-200 dark:border-[#222] transition-colors"
+                                                title="Ver Detalhes (Modal)"
+                                            >
+                                                <Eye size={14} />
+                                            </button>
+                                        </td>
                                     </tr>
 
                                     {/* ── Expanded items row ── */}
                                     {isExpanded && (
                                         <tr className="bg-gray-50/50 dark:bg-[#050505]">
-                                            <td colSpan={7} className="px-4 py-4">
+                                            <td colSpan={8} className="px-4 py-4">
                                                 <div className="ml-4 space-y-3">
                                                     <p className="text-[9px] font-black text-gray-400 dark:text-[#333] uppercase tracking-[0.2em]">
                                                         Detalhamento da Transação · #{saleId}
