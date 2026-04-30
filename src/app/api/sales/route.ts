@@ -4,7 +4,9 @@ import { db } from '@/lib/db';
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit');
-    const sales = await db.getSales(limit ? parseInt(limit) : undefined);
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    const sales = await db.getSales(limit ? parseInt(limit) : undefined, from || undefined, to || undefined);
     return NextResponse.json(sales);
 }
 

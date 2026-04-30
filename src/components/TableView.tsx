@@ -140,37 +140,45 @@ export default function TableView() {
     };
 
     if (isLoading) return (
-        <div className="flex-1 flex items-center justify-center bg-white text-gray-300 text-xs font-bold uppercase transition-all">
-            <Loader2 className="animate-spin" size={20} /> Carregando...
+        <div className="flex-1 flex items-center justify-center bg-[#0c0c0c] text-[#444] gap-2 text-xs font-medium">
+            <Loader2 className="animate-spin text-orange-500" size={20} /> Carregando...
         </div>
     );
 
     return (
-        <div className="flex flex-1 overflow-hidden font-sans text-sm bg-white">
-            <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-                <header className="mb-8 flex justify-between items-center bg-white">
+        <div className="flex flex-1 overflow-hidden font-sans text-sm bg-[#0c0c0c] text-white">
+            <div className="flex-1 flex flex-col p-5 overflow-y-auto">
+                <header className="mb-5 flex justify-between items-center">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-800">Mapa de Mesas</h2>
-                        <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{tables.filter(t => t.status === 'free').length} mesas disponíveis</p>
+                        <h2 className="text-sm font-semibold text-white">Mesas</h2>
+                        <p className="text-[9px] text-[#444] font-medium uppercase tracking-widest mt-0.5">{tables.filter(t => t.status === 'free').length} disponíveis</p>
                     </div>
                 </header>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
                     {tables.map((table, idx) => (
                         <button
                             key={table.id || table._id || idx}
                             onClick={() => setSelectedTable(table)}
-                            className={`aspect-square rounded-2xl p-4 flex flex-col justify-between transition-all border text-left relative shadow-sm hover:shadow-md ${selectedTable?._id === table._id ? 'border-blue-500 ring-4 ring-blue-50 bg-blue-50/20' : 'border-gray-100 bg-white'} ${table.status === 'occupied' ? 'border-blue-100 text-blue-700' : table.status === 'billing' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'text-gray-400 hover:border-gray-200'}`}
+                            className={`aspect-square rounded-xl p-3 flex flex-col justify-between transition-all border text-left ${
+                                selectedTable?._id === table._id
+                                    ? 'border-orange-500/60 bg-orange-500/5'
+                                    : table.status === 'occupied'
+                                        ? 'border-white/10 bg-white/[0.04] text-white'
+                                        : table.status === 'billing'
+                                            ? 'border-orange-500/30 bg-orange-500/5 text-orange-400'
+                                            : 'border-white/[0.05] bg-white/[0.02] text-[#444] hover:border-white/10 hover:text-[#888]'
+                            }`}
                         >
-                            <span className="text-xl font-bold">#{table.number}</span>
+                            <span className="text-lg font-bold">#{table.number}</span>
                             <div className="overflow-hidden">
                                 {table.customerName ? (
                                     <>
-                                        <p className="text-[10px] font-bold truncate uppercase">{table.customerName}</p>
-                                        <p className="text-[10px] font-medium mt-0.5 opacity-70">R$ {table.total?.toFixed(2)}</p>
+                                        <p className="text-[9px] font-semibold truncate uppercase text-[#aaa]">{table.customerName}</p>
+                                        <p className="text-[9px] font-medium mt-0.5 text-orange-400">R$ {table.total?.toFixed(2)}</p>
                                     </>
                                 ) : (
-                                    <span className="text-[10px] font-medium uppercase tracking-wider italic opacity-40">Livre</span>
+                                    <span className="text-[9px] font-medium uppercase tracking-wider italic text-[#333]">Livre</span>
                                 )}
                             </div>
                         </button>
@@ -180,19 +188,19 @@ export default function TableView() {
 
             {/* Painel de Controle */}
             {selectedTable && (
-                <div className="w-80 bg-white border-l border-gray-100 flex flex-col animate-in slide-in-from-right duration-200">
-                    <header className="p-6 border-b border-gray-100">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-sm font-bold text-gray-800">Mesa {selectedTable.number}</h3>
-                            <button onClick={() => setSelectedTable(null)} className="p-1 hover:bg-gray-100 rounded-lg text-gray-300 transition-colors"><X size={18} /></button>
+                <div className="w-72 bg-[#0f0f0f] border-l border-white/[0.05] flex flex-col">
+                    <header className="p-4 border-b border-white/[0.05]">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-sm font-semibold text-white">Mesa {selectedTable.number}</h3>
+                            <button onClick={() => setSelectedTable(null)} className="p-1.5 rounded-lg text-[#444] hover:text-white hover:bg-white/5 transition-all"><X size={16} /></button>
                         </div>
 
                         {selectedTable.status === 'free' ? (
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 <div>
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Nome do Cliente</label>
+                                    <label className="text-[9px] font-bold text-[#444] uppercase mb-1.5 block tracking-widest">Nome do Cliente</label>
                                     <input
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-blue-500"
+                                        className="w-full bg-[#111] border border-white/[0.07] rounded-lg px-3 py-2 text-xs text-white font-medium outline-none focus:border-orange-500/50 transition-all"
                                         placeholder="Ex: Pedro Silva"
                                         value={newCustomer}
                                         onChange={e => setNewCustomer(e.target.value)}
@@ -201,40 +209,40 @@ export default function TableView() {
                                 </div>
                                 <button
                                     onClick={handleOpenTable}
-                                    className="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold uppercase transition-colors"
+                                    className="w-full bg-orange-600 text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-orange-500 transition-colors"
                                 >
                                     Abrir Mesa
                                 </button>
                             </div>
                         ) : (
-                            <div className="space-y-1">
-                                <p className="text-xs font-bold text-gray-800 uppercase tracking-tight line-clamp-1">{selectedTable.customerName}</p>
-                                <p className="text-[10px] font-medium text-gray-400 uppercase">{selectedTable.items?.length || 0} itens no comando</p>
+                            <div className="space-y-0.5">
+                                <p className="text-xs font-semibold text-white uppercase tracking-tight">{selectedTable.customerName}</p>
+                                <p className="text-[9px] font-medium text-[#444] uppercase">{selectedTable.items?.length || 0} itens no pedido</p>
                             </div>
                         )}
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                    <div className="flex-1 overflow-y-auto p-3 space-y-1.5" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1a1a1a transparent' }}>
                         {selectedTable.items?.map((item: any, i: number) => (
-                            <div key={`table-item-${selectedTable.id || selectedTable._id || 'none'}-${i}`} className="flex justify-between items-center bg-gray-50/50 p-2 rounded-lg border border-gray-50">
+                            <div key={`table-item-${selectedTable.id || selectedTable._id || 'none'}-${i}`} className="flex justify-between items-center bg-white/[0.03] border border-white/[0.04] p-2.5 rounded-lg">
                                 <div className="min-w-0 pr-2">
-                                    <p className="text-[11px] font-bold text-gray-700 truncate line-clamp-1 uppercase tracking-tight">{item.name}</p>
-                                    <p className="text-[9px] text-gray-400 font-medium">{item.quantity}x • R$ {item.price.toFixed(2)}</p>
+                                    <p className="text-[10px] font-semibold text-[#ccc] truncate">{item.name}</p>
+                                    <p className="text-[9px] text-[#444] font-medium">{item.quantity}x · R$ {item.price.toFixed(2)}</p>
                                 </div>
-                                <span className="text-[11px] font-bold text-gray-800 whitespace-nowrap">R$ {item.total.toFixed(2)}</span>
+                                <span className="text-[10px] font-bold text-white whitespace-nowrap">R$ {item.total.toFixed(2)}</span>
                             </div>
                         ))}
                     </div>
 
                     {selectedTable.status !== 'free' && (
-                        <footer className="p-6 border-t border-gray-100 bg-white space-y-4">
-                            <div className="flex justify-between items-end">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase">Subtotal</span>
-                                <span className="text-2xl font-bold tracking-tight text-gray-800">R$ {selectedTable.total?.toFixed(2)}</span>
+                        <footer className="p-4 border-t border-white/[0.05] space-y-3">
+                            <div className="flex justify-between items-baseline">
+                                <span className="text-[9px] font-bold text-[#444] uppercase">Total</span>
+                                <span className="text-xl font-black text-orange-400">R$ {selectedTable.total?.toFixed(2)}</span>
                             </div>
                             <button
                                 onClick={() => setIsPaymentOpen(true)}
-                                className="w-full bg-blue-600 text-white py-3.5 rounded-xl text-xs font-bold uppercase transition-all shadow-xl shadow-blue-100 hover:bg-blue-700 active:scale-95"
+                                className="w-full bg-orange-600 text-white py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-orange-500 transition-all shadow-lg shadow-orange-900/20"
                             >
                                 Fechar e Pagar
                             </button>

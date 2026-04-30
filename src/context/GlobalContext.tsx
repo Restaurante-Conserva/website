@@ -2,13 +2,72 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+export interface Category {
+    _id: string;
+    name: string;
+    image?: string;
+    order?: number;
+}
+
+export interface Product {
+    _id: string;
+    name: string;
+    price: number;
+    category: string;
+    image?: string;
+    stock?: number;
+    unit?: string;
+}
+
+export interface Payment {
+    method: 'money' | 'pix' | 'credit' | 'debit' | 'fiado';
+    amount: number;
+}
+
+export interface SaleItem {
+    productId: string;
+    name: string;
+    quantity: number;
+    price: number;
+    category?: string;
+    volume?: string;
+}
+
+export interface Sale {
+    _id: string;
+    date: string;
+    total: number;
+    items: SaleItem[];
+    payments: Payment[];
+    employee?: string;
+    customer?: string;
+    customerName?: string;
+}
+
+export interface Customer {
+    _id: string;
+    name: string;
+    phone?: string;
+    address?: { street?: string; number?: string };
+    debt?: number;
+    debtBalance?: number;
+    loyaltyPoints?: number;
+}
+
+export interface Employee {
+    _id: string;
+    name: string;
+    role: string;
+    pin: string;
+}
+
 interface GlobalContextType {
-    categories: any[];
-    products: any[];
-    sales: any[];
-    employees: any[];
-    customers: any[];
-    config: any;
+    categories: Category[];
+    products: Product[];
+    sales: Sale[];
+    employees: Employee[];
+    customers: Customer[];
+    config: Record<string, unknown> | null;
     isLoading: boolean;
     refreshCategories: () => Promise<void>;
     refreshProducts: () => Promise<void>;
@@ -35,12 +94,12 @@ const GlobalContext = createContext<GlobalContextType>({
 });
 
 export function GlobalProvider({ children }: { children: ReactNode }) {
-    const [categories, setCategories] = useState<any[]>([]);
-    const [products, setProducts] = useState<any[]>([]);
-    const [sales, setSales] = useState<any[]>([]);
-    const [employees, setEmployees] = useState<any[]>([]);
-    const [customers, setCustomers] = useState<any[]>([]);
-    const [config, setConfig] = useState<any>(null);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [sales, setSales] = useState<Sale[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [config, setConfig] = useState<Record<string, unknown> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     const refreshCategories = async () => {

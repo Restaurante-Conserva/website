@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-    Search, ShoppingCart, User, Plus, Minus, Trash2,
-    CheckCircle2, AlertCircle, Loader2,
-    X, Utensils, Tag, ClipboardList, ShoppingBag, Receipt
+    Search, User, Plus, Minus, Trash2,
+    CheckCircle2, Loader2, X, Utensils, Tag, ShoppingBag, Receipt
 } from 'lucide-react';
 import PaymentModal from './PaymentModal';
 import CustomerModal from './CustomerModal';
 import DebtModal from './DebtModal';
 import { useGlobal } from '../context/GlobalContext';
+import { useToast } from '../context/ToastContext';
 
 interface Product {
     id: string;
@@ -21,30 +21,26 @@ interface Product {
     image?: string;
 }
 
-interface Category {
-    id: string;
-    _id?: string;
-    name: string;
-    image?: string;
+interface POSViewProps {
+    bridgeStatus?: 'online' | 'offline';
 }
 
-export default function POSView() {
-    const { products, categories, isLoading, refreshProducts, refreshCustomers, customers } = useGlobal();
+export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
+    const { products, categories, isLoading, refreshProducts, refreshCustomers } = useGlobal();
+    const { showToast } = useToast();
     const [cart, setCart] = useState<any[]>([]);
     const [search, setSearch] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-    // const [isLoading, setIsLoading] = useState(true); // Now from context
     const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
     const [customerModalMode, setCustomerModalMode] = useState<'search' | 'register'>('search');
     const [employee, setEmployee] = useState<any>(null);
     const [showDebtorsOnly, setShowDebtorsOnly] = useState(false);
-    const [visibleCount, setVisibleCount] = useState(40); // Pagination limit
+    const [visibleCount, setVisibleCount] = useState(40);
     const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Reset visible count when search or category changes
     useEffect(() => {
         setVisibleCount(40);
         if (scrollRef.current) scrollRef.current.scrollTop = 0;
@@ -55,16 +51,10 @@ export default function POSView() {
         if (saved) setEmployee(JSON.parse(saved));
     }, []);
 
-
-
     const addToCart = (p: Product) => {
         const id = p.id || p._id;
         if (!id) return;
-
-        if (p.stock !== null && p.stock <= 0) {
-            alert('PRODUTO FORA DE ESTOQUE');
-            return;
-        }
+        if (p.stock !== null && p.stock <= 0) { showToast('Produto fora de estoque', 'error'); return; }
         setCart(prev => {
             const existing = prev.find(item => item.id === id);
             if (existing) return prev.map(item => item.id === id ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price } : item);
@@ -82,92 +72,59 @@ export default function POSView() {
         }).filter(item => item.quantity > 0));
     };
 
-    const removeFromCart = (id: string) => {
-        setCart(prev => prev.filter(item => item.id !== id));
-    };
+    const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.id !== id));
 
     const total = useMemo(() => cart.reduce((acc, item) => acc + item.total, 0), [cart]);
 
     const handlePaymentConfirm = async (payments: any[], isFiscal: boolean, isCustomerCopy: boolean, paidAmount: number, fiadoTaker?: string, isMerchantCopy?: boolean, discount: number = 0) => {
         const hasFiado = payments.some(p => p.method === 'fiado');
         const finalIsFiscal = hasFiado ? false : isFiscal;
-
         const saleData = {
-            items: cart,
-            total: total - discount,
-            subtotal: total,
-            discount: discount,
-            payments,
-            paidAmount,
-            isFiscal: finalIsFiscal,
-            fiadoTaker,
-            customer: selectedCustomer,
-            employee: employee?.name || 'Operador',
+            items: cart, total: total - discount, subtotal: total, discount, payments,
+            paidAmount, isFiscal: finalIsFiscal, fiadoTaker,
+            customer: selectedCustomer, employee: employee?.name || 'Operador',
             date: new Date().toISOString()
         };
-
         try {
-            console.log(`[POS DEBUG] Sending sale to server. isFiscal: ${isFiscal}`);
             const res = await fetch('/api/sales', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(saleData)
             });
-
             if (res.ok) {
                 const savedSale = await res.json();
-                console.log(`[POS DEBUG] Sale saved successfully:`, savedSale);
-
                 let printType = 'receipt';
                 if (isFiscal && isCustomerCopy) printType = 'both';
                 else if (isFiscal) printType = 'fiscal';
-
                 const printerPayload = {
-                    type: printType,
-                    isMerchantCopy,
-                    fiadoTaker,
-                    items: cart,
-                    total: savedSale.total,
-                    subtotal: savedSale.subtotal || savedSale.total,
-                    discount: savedSale.discount || 0,
-                    payments: savedSale.payments,
-                    customer: savedSale.customer,
-                    paidAmount: savedSale.paidAmount,
-                    date: savedSale.date,
-                    qrcode_url: savedSale.qrcode_url,
-                    nfeQRCode: savedSale.nfeQRCode,
-                    nfeNumber: savedSale.nfeNumber,
-                    nfeSeries: savedSale.nfeSeries,
-                    fiscalReference: savedSale.fiscalReference,
-                    nfeId: savedSale.nfeId,
-                    nfeExternalUrl: savedSale.nfeExternalUrl,
-                    nfeMessage: savedSale.nfeMessage,
-                    fiscalData: savedSale.fiscalData
+                    type: printType, isMerchantCopy, fiadoTaker, items: cart,
+                    total: savedSale.total, subtotal: savedSale.subtotal || savedSale.total,
+                    discount: savedSale.discount || 0, payments: savedSale.payments,
+                    customer: savedSale.customer, paidAmount: savedSale.paidAmount,
+                    date: savedSale.date, qrcode_url: savedSale.qrcode_url,
+                    nfeQRCode: savedSale.nfeQRCode, nfeNumber: savedSale.nfeNumber,
+                    nfeSeries: savedSale.nfeSeries, fiscalReference: savedSale.fiscalReference,
+                    nfeId: savedSale.nfeId, nfeExternalUrl: savedSale.nfeExternalUrl,
+                    nfeMessage: savedSale.nfeMessage, fiscalData: savedSale.fiscalData
                 };
-
                 fetch('http://localhost:7777/print', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(printerPayload)
-                }).catch((err) => console.error("[POS DEBUG] Printer bridge offline:", err));
-
-                setCart([]);
-                setSelectedCustomer(null);
-                setIsPaymentOpen(false);
-                refreshProducts(); // Refresh context data
-                alert('Venda finalizada com sucesso!');
+                }).catch(err => console.error("[POS] Printer offline:", err));
+                setCart([]); setSelectedCustomer(null); setIsPaymentOpen(false);
+                refreshProducts();
+                showToast('Venda finalizada com sucesso!', 'success');
             } else {
                 const errorData = await res.json();
-                alert(`Erro ao processar venda no banco: ${errorData.error || 'Erro desconhecido'}`);
+                showToast(`Erro: ${errorData.error || 'Erro desconhecido'}`, 'error');
             }
         } catch (e) {
-            alert('Erro de conexão com o servidor');
+            showToast('Erro de conexão', 'error');
         }
     };
 
     const filteredProducts = useMemo(() => products.filter(p =>
-        (selectedCategory ? (p.categoryId === selectedCategory) : true) &&
-        (p.name.toLowerCase().includes(search.toLowerCase()))
+        (selectedCategory ? p.categoryId === selectedCategory : true) &&
+        p.name.toLowerCase().includes(search.toLowerCase())
     ), [products, selectedCategory, search]);
 
     const visibleProducts = useMemo(() => filteredProducts.slice(0, visibleCount), [filteredProducts, visibleCount]);
@@ -180,60 +137,75 @@ export default function POSView() {
     };
 
     return (
-        <div className="flex h-full bg-white font-sans text-sm selection:bg-blue-100 overflow-hidden">
+        <div className="flex h-full bg-gray-50 dark:bg-[#0c0c0c] text-gray-900 dark:text-white overflow-hidden transition-colors">
+
+            {/* ── Products Panel ── */}
             <div className="flex-1 flex flex-col min-w-0">
-                <header className="px-8 py-4 bg-white border-b border-gray-100 shrink-0">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-800 tracking-tight mb-0.5">Vendas PVD</h2>
-                            <p className="text-[10px] font-bold text-gray-400 flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                Operador: {employee?.name || 'Operador'}
-                            </p>
-                        </div>
-                        <div className="relative group w-full md:w-80">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                {/* Header */}
+                <div className="px-5 py-3 border-b border-gray-200 dark:border-white/[0.05] shrink-0 flex flex-wrap lg:flex-nowrap items-center justify-between gap-4">
+                    <div className="flex-1 min-w-[200px]">
+                        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Vendas</h2>
+                        <p className="text-[9px] text-gray-500 dark:text-[#444] font-medium uppercase tracking-widest mt-0.5">
+                            Operador: {employee?.name || '—'}
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full lg:w-auto">
+                        <div className="relative flex-1 lg:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#444]" size={14} />
                             <input
-                                className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-10 pr-4 py-2 text-xs font-medium placeholder:text-gray-300 outline-none focus:bg-white focus:border-blue-500 transition-all"
+                                className="w-full bg-white dark:bg-[#111] border border-gray-200 dark:border-white/[0.06] rounded-lg pl-9 pr-3 py-2 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#333] outline-none focus:border-orange-500/50 transition-all shadow-sm dark:shadow-none"
                                 placeholder="Buscar produto..."
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
                             />
                         </div>
+                        {/* IMP Badge — strictly scoped to POSView, layout fixed to prevent overlap */}
+                        <div className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg border text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap shadow-sm dark:shadow-none min-w-max ${
+                            bridgeStatus === 'online'
+                                ? 'bg-green-50 dark:bg-green-500/5 border-green-200 dark:border-green-500/20 text-green-600 dark:text-green-500'
+                                : 'bg-gray-100 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-gray-500 dark:text-[#444]'
+                        }`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${bridgeStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`} />
+                            IMP: {bridgeStatus === 'online' ? 'OK' : 'OFF'}
+                        </div>
                     </div>
+                </div>
 
-                    <div className="flex gap-2 mt-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
+                {/* Category filters */}
+                <div className="flex gap-1.5 px-5 py-2.5 border-b border-gray-200 dark:border-white/[0.05] overflow-x-auto shrink-0" style={{ scrollbarWidth: 'none' }}>
+                    <button
+                        onClick={() => setSelectedCategory(null)}
+                        className={`px-3 py-1 rounded-md text-[10px] font-semibold whitespace-nowrap transition-all ${!selectedCategory ? 'bg-orange-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-[#555] hover:bg-gray-200 dark:hover:bg-white/[0.07]'}`}
+                    >
+                        Todos
+                    </button>
+                    {categories.map(cat => (
                         <button
-                            onClick={() => setSelectedCategory(null)}
-                            className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap ${!selectedCategory ? 'bg-gray-800 text-white shadow-sm' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                            key={cat.id || cat._id}
+                            onClick={() => setSelectedCategory(cat.id || (cat._id as string))}
+                            className={`px-3 py-1 rounded-md text-[10px] font-semibold whitespace-nowrap transition-all ${(selectedCategory === cat.id || selectedCategory === cat._id) ? 'bg-orange-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-[#555] hover:bg-gray-200 dark:hover:bg-white/[0.07]'}`}
                         >
-                            Todos
+                            {cat.name}
                         </button>
-                        {categories.map(cat => (
-                            <button
-                                key={cat.id || cat._id}
-                                onClick={() => setSelectedCategory(cat.id || (cat._id as string))}
-                                className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap ${(selectedCategory === cat.id || selectedCategory === cat._id) ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                            >
-                                {cat.name}
-                            </button>
-                        ))}
-                    </div>
-                </header>
+                    ))}
+                </div>
 
-                <main
+                {/* Products Grid */}
+                <div
                     ref={scrollRef}
                     onScroll={handleScroll}
-                    className="flex-1 overflow-y-auto p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-min content-start"
+                    className="flex-1 overflow-y-auto p-4 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 auto-rows-min content-start"
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: '#1a1a1a transparent' }}
                 >
                     {isLoading ? (
-                        Array.from({ length: 10 }).map((_, i) => (
-                            <div key={`skeleton-p-${i}`} className="aspect-square bg-gray-50 rounded-2xl animate-pulse" />
+                        Array.from({ length: 12 }).map((_, i) => (
+                            <div key={`sk-${i}`} className="aspect-square bg-gray-200 dark:bg-white/5 rounded-xl animate-pulse" />
                         ))
                     ) : visibleProducts.length === 0 ? (
-                        <div className="col-span-full py-20 text-center opacity-30 flex flex-col items-center gap-2">
-                            <Tag size={40} />
-                            <p className="text-[11px] font-bold">Nenhum produto encontrado</p>
+                        <div className="col-span-full py-20 flex flex-col items-center gap-2 text-gray-400 dark:text-[#333]">
+                            <Tag size={32} />
+                            <p className="text-[10px] font-medium">Nenhum produto encontrado</p>
                         </div>
                     ) : (
                         <>
@@ -241,170 +213,164 @@ export default function POSView() {
                                 <button
                                     key={p.id || p._id}
                                     onClick={() => addToCart(p)}
-                                    className="group bg-white border border-gray-100 rounded-2xl flex flex-col transition-all shadow-sm hover:border-blue-500 hover:shadow-md overflow-hidden relative"
+                                    className="group bg-white dark:bg-[#111] shadow-sm dark:shadow-none border border-gray-100 dark:border-white/[0.05] rounded-xl flex flex-col transition-all hover:border-orange-500/40 hover:shadow-md dark:hover:bg-[#151515] overflow-hidden relative"
                                 >
-                                    <div className="w-full aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden relative">
+                                    <div className="w-full aspect-[4/3] bg-gray-50 dark:bg-white/[0.03] flex items-center justify-center overflow-hidden relative border-b border-gray-100 dark:border-transparent">
                                         {p.image ? (
                                             <img src={p.image} alt={p.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                         ) : (
-                                            <Utensils size={28} className="text-gray-200 group-hover:text-blue-300 transition-colors" />
+                                            <Utensils size={22} className="text-gray-300 dark:text-[#2a2a2a] group-hover:text-orange-500/40 transition-colors" />
                                         )}
                                         {p.stock !== null && p.stock <= 0 && (
-                                            <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px] flex items-center justify-center">
-                                                <span className="text-[10px] font-black text-red-500 uppercase border border-red-200 bg-red-50 px-2 py-1 rounded">Sem Estoque</span>
+                                            <div className="absolute inset-0 bg-white/80 dark:bg-black/60 backdrop-blur-[1px] flex items-center justify-center">
+                                                <span className="text-[9px] font-bold text-red-600 dark:text-red-400 uppercase border border-red-500/30 bg-red-100 dark:bg-red-500/10 px-2 py-0.5 rounded">Sem Estoque</span>
                                             </div>
                                         )}
                                     </div>
-                                    <div className="p-3 flex flex-col gap-1 w-full relative z-10">
-                                        <h3 className="text-[11px] font-bold text-gray-800 leading-tight line-clamp-2 text-left h-[2.5em]" title={p.name}>{p.name}</h3>
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-xs font-bold text-blue-600">R$ {(p.price || 0).toFixed(2)}</p>
-                                            {p.stock !== null && <span className={`text-[8px] font-bold uppercase ${p.stock <= 5 ? 'text-red-500' : 'text-gray-400'}`}>{p.stock}un</span>}
+                                    <div className="p-2.5">
+                                        <h3 className="text-[10px] font-semibold text-gray-800 dark:text-[#bbb] leading-tight line-clamp-2 text-left h-[2.4em]">{p.name}</h3>
+                                        <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-100 dark:border-transparent">
+                                            <p className="text-[11px] font-bold text-orange-600 dark:text-orange-400">R$ {(p.price || 0).toFixed(2)}</p>
+                                            {p.stock !== null && <span className={`text-[8px] font-bold ${p.stock <= 5 ? 'text-red-500' : 'text-gray-500 dark:text-[#555]'}`}>{p.stock}un</span>}
                                         </div>
                                     </div>
                                 </button>
                             ))}
                             {visibleProducts.length < filteredProducts.length && (
-                                <div className="col-span-full py-4 text-center">
-                                    <Loader2 className="animate-spin text-blue-600 mx-auto" size={24} />
+                                <div className="col-span-full py-4 flex justify-center">
+                                    <Loader2 className="animate-spin text-orange-500" size={20} />
                                 </div>
                             )}
                         </>
                     )}
-                </main>
+                </div>
             </div>
 
-            <aside className="w-[320px] bg-white border-l border-gray-100 flex flex-col shrink-0 shadow-lg">
-                <header className="p-6 border-b border-gray-100 space-y-4">
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-sm font-bold text-gray-800">Carrinho</h3>
-                        <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full text-[10px] font-bold">{cart.length}</span>
+            {/* ── Cart Panel ── */}
+            <aside className="w-[300px] bg-white dark:bg-[#0f0f0f] border-l border-gray-200 dark:border-white/[0.05] flex flex-col shrink-0 z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] dark:shadow-none">
+                {/* Cart Header */}
+                <div className="p-4 border-b border-gray-200 dark:border-white/[0.05] space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">Carrinho</span>
+                            <span className="bg-orange-100 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full text-[10px] font-bold">{cart.length}</span>
+                        </div>
+                        {cart.length > 0 && (
+                            <button onClick={() => setCart([])} className="p-1.5 rounded-lg text-gray-400 dark:text-[#444] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">
+                                <Trash2 size={14} />
+                            </button>
+                        )}
                     </div>
-                    {cart.length > 0 && (
-                        <button
-                            onClick={() => setCart([])}
-                            className="text-gray-300 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer p-2 rounded-lg hover:bg-red-50"
-                            title="Esvaziar Carrinho"
-                        >
-                            <Trash2 size={16} />
-                        </button>
-                    )}
 
+                    {/* Customer */}
                     {selectedCustomer ? (
-                        <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 space-y-3">
+                        <div className="bg-gray-50 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.06] rounded-xl p-3 space-y-2.5 shadow-sm dark:shadow-none">
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-100"><User size={20} /></div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-600/20 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+                                        <User size={15} />
+                                    </div>
                                     <div className="min-w-0">
-                                        <p className="text-[10px] font-bold text-blue-900 uppercase tracking-tight truncate">{selectedCustomer.name}</p>
-                                        <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">{selectedCustomer.phone || selectedCustomer.cpf || 'IDENTIFICADO'}</p>
+                                        <p className="text-[10px] font-semibold text-gray-900 dark:text-white truncate">{selectedCustomer.name}</p>
+                                        <p className="text-[8px] text-gray-500 dark:text-[#555] font-medium">{selectedCustomer.phone || selectedCustomer.cpf || 'Identificado'}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setSelectedCustomer(null)} className="text-blue-300 hover:text-red-500 transition-colors bg-transparent border-none p-0"><X size={16} /></button>
+                                <button onClick={() => setSelectedCustomer(null)} className="text-gray-400 hover:text-gray-800 dark:text-[#444] dark:hover:text-white transition-colors">
+                                    <X size={14} />
+                                </button>
                             </div>
-
-
-                            <div className="flex items-center justify-between pt-3 border-t border-blue-100/50">
-                                <div className="flex flex-col">
-                                    <span className="text-[7px] font-bold text-blue-400 uppercase tracking-widest">Fidelidade</span>
-                                    <span className="text-xs font-black text-blue-700">{selectedCustomer.loyaltyPoints || 0} <span className="text-[8px]">PTS</span></span>
+                            <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-white/[0.04]">
+                                <div>
+                                    <p className="text-[7px] text-gray-500 dark:text-[#555] font-bold uppercase tracking-widest">Fidelidade</p>
+                                    <p className="text-xs font-bold text-gray-900 dark:text-white">{selectedCustomer.loyaltyPoints || 0} <span className="text-[9px] text-gray-400 dark:text-[#555]">PTS</span></p>
                                 </div>
-                                {selectedCustomer.address?.street && (
-                                    <div className="flex flex-col items-end max-w-[150px]">
-                                        <span className="text-[7px] font-bold text-blue-400 uppercase tracking-widest text-right">Entrega</span>
-                                        <span className="text-[8px] font-bold text-blue-600 truncate w-full text-right uppercase">{selectedCustomer.address.street}, {selectedCustomer.address.number}</span>
-                                    </div>
-                                )}
+                                <button onClick={() => setIsDebtModalOpen(true)} className="text-right group hover:opacity-80 transition-opacity">
+                                    <p className="text-[7px] text-gray-500 dark:text-[#555] font-bold uppercase tracking-widest">Fiado</p>
+                                    <p className={`text-xs font-bold ${selectedCustomer.debtBalance > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-[#555]'}`}>
+                                        R$ {(selectedCustomer.debtBalance || 0).toFixed(2)}
+                                    </p>
+                                </button>
                             </div>
-
-                            <button onClick={() => setIsDebtModalOpen(true)} className="w-full bg-white border border-red-100 rounded-xl p-3 flex items-center justify-between hover:border-red-300 hover:shadow-sm transition-all group cursor-pointer">
-                                <div className="flex flex-col text-left">
-                                    <span className="text-[9px] font-bold text-red-400 uppercase tracking-widest group-hover:text-red-500 transition-colors">Gerenciar Fiado</span>
-                                    <span className="text-sm font-black text-red-600 group-hover:scale-105 transition-transform origin-left">Saldo: R$ {(selectedCustomer.debtBalance || 0).toFixed(2)}</span>
-                                </div>
-                                <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all">
-                                    <Utensils size={16} className={selectedCustomer.debtBalance > 0 ? "animate-pulse" : ""} />
-                                </div>
-                            </button>
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-2">
-                            <button onClick={() => { setShowDebtorsOnly(true); setIsCustomerModalOpen(true); }} className="w-full py-3 bg-red-50 text-red-500 border border-red-100 rounded-xl text-xs font-bold tracking-wide hover:bg-red-100 transition-all flex items-center justify-center gap-2 mb-1">
-                                <Receipt size={14} /> Gerenciar Fiados
+                        <div className="flex flex-col gap-1.5">
+                            <button onClick={() => { setShowDebtorsOnly(true); setIsCustomerModalOpen(true); }}
+                                className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/15 rounded-lg text-[10px] font-semibold flex items-center justify-center gap-1.5 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all shadow-sm dark:shadow-none">
+                                <Receipt size={12} /> Receber Fiados
                             </button>
-                            <button onClick={() => { setShowDebtorsOnly(false); setCustomerModalMode('search'); setIsCustomerModalOpen(true); }} className="w-full py-3 border border-gray-100 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
-                                <Search size={14} /> Identificar Cliente
-                            </button>
-                            <button onClick={() => { setCustomerModalMode('register'); setIsCustomerModalOpen(true); }} className="w-full py-3 bg-gray-900 text-white rounded-xl text-xs font-semibold tracking-wide hover:bg-black transition-all flex items-center justify-center gap-2">
-                                <Plus size={14} /> Cadastrar Novo Cliente
-                            </button>
-                        </div>
-                    )
-                    }
-                </header >
-
-                <div className="flex-1 overflow-y-auto px-4 py-2">
-                    {cart.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-300 opacity-60">
-                            <ShoppingBag size={48} className="mb-4" />
-                            <p className="text-xs font-medium">Carrinho vazio</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {cart.map((item, i) => (
-                                <div key={`cart-item-${i}`} className="bg-white border border-gray-50 p-3 rounded-2xl flex items-center justify-between group hover:border-blue-100 transition-all">
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="text-xs font-bold text-gray-800 truncate mb-1">{item.name}</h4>
-                                        <p className="text-[10px] text-gray-400 font-medium">R$ {(item.price || 0).toFixed(2)} x {item.quantity}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex items-center bg-gray-50 rounded-lg border border-gray-100 p-0.5">
-                                            <button
-                                                onClick={() => updateQuantity(item.id, -1)}
-                                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-white rounded transition-all border-none bg-transparent cursor-pointer"
-                                            >
-                                                <Minus size={10} />
-                                            </button>
-                                            <span className="text-[10px] font-bold text-gray-600 min-w-[20px] text-center">{item.quantity}</span>
-                                            <button
-                                                onClick={() => updateQuantity(item.id, 1)}
-                                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-white rounded transition-all border-none bg-transparent cursor-pointer"
-                                            >
-                                                <Plus size={10} />
-                                            </button>
-                                        </div>
-                                        <div className="flex flex-col items-end min-w-[60px]">
-                                            <span className="text-xs font-black text-gray-900">R$ {(item.total || 0).toFixed(2)}</span>
-                                            <button onClick={() => removeFromCart(item.id)} className="p-1 text-gray-300 hover:text-red-500 transition-all border-none bg-transparent cursor-pointer opacity-0 group-hover:opacity-100"><X size={12} /></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                            <div className="flex gap-1.5">
+                                <button onClick={() => { setShowDebtorsOnly(false); setCustomerModalMode('search'); setIsCustomerModalOpen(true); }}
+                                    className="flex-1 py-2 bg-white dark:bg-transparent border border-gray-200 dark:border-white/[0.06] rounded-lg text-[10px] text-gray-600 dark:text-[#555] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/[0.04] flex items-center justify-center gap-1.5 transition-all shadow-sm dark:shadow-none">
+                                    <Search size={12} /> Identificar
+                                </button>
+                                <button onClick={() => { setCustomerModalMode('register'); setIsCustomerModalOpen(true); }}
+                                    className="flex-1 py-2 bg-gray-50 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.06] rounded-lg text-[10px] text-gray-600 dark:text-[#777] hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.07] flex items-center justify-center gap-1.5 transition-all shadow-sm dark:shadow-none">
+                                    <Plus size={12} /> Cadastrar
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
 
-                <footer className="p-6 bg-gray-50/30 border-t border-gray-100 space-y-4">
-                    <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-medium text-gray-400">
+                {/* Cart Items */}
+                <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 bg-gray-50/50 dark:bg-transparent" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1a1a1a transparent' }}>
+                    {cart.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-300 dark:text-[#2a2a2a] gap-2">
+                            <ShoppingBag size={36} />
+                            <p className="text-[10px] font-medium text-gray-400 dark:text-[#444]">Carrinho vazio</p>
+                        </div>
+                    ) : (
+                        cart.map((item, i) => (
+                            <div key={`ci-${i}`} className="bg-white dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.04] p-2.5 rounded-lg flex items-center gap-2 group hover:border-orange-500/20 hover:shadow-sm dark:hover:shadow-none transition-all">
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="text-[10px] font-semibold text-gray-800 dark:text-[#ccc] truncate">{item.name}</h4>
+                                    <p className="text-[9px] text-gray-500 dark:text-[#555] mt-0.5">R$ {(item.price || 0).toFixed(2)} × {item.quantity}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center bg-gray-100 dark:bg-white/[0.04] rounded-md border border-gray-200 dark:border-white/[0.06]">
+                                        <button onClick={() => updateQuantity(item.id, -1)} className="p-1 px-1.5 text-gray-500 dark:text-[#444] hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                                            <Minus size={9} />
+                                        </button>
+                                        <span className="text-[10px] font-bold text-gray-900 dark:text-white min-w-[20px] text-center">{item.quantity}</span>
+                                        <button onClick={() => updateQuantity(item.id, 1)} className="p-1 px-1.5 text-gray-500 dark:text-[#444] hover:text-orange-500 transition-colors">
+                                            <Plus size={9} />
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-col items-end min-w-[45px]">
+                                        <span className="text-[10px] font-bold text-gray-900 dark:text-white">R$ {(item.total || 0).toFixed(2)}</span>
+                                        <button onClick={() => removeFromCart(item.id)} className="text-gray-400 dark:text-[#333] hover:text-red-500 dark:hover:text-red-500 transition-colors opacity-100 lg:opacity-0 group-hover:opacity-100">
+                                            <X size={11} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* Footer / Checkout */}
+                <div className="p-4 border-t border-gray-200 dark:border-white/[0.05] space-y-3 bg-white dark:bg-transparent">
+                    <div className="space-y-1 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-transparent">
+                        <div className="flex justify-between text-[10px] text-gray-500 dark:text-[#555] font-medium">
                             <span>Subtotal</span>
                             <span>R$ {(total || 0).toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between items-end">
-                            <span className="text-xs font-bold text-gray-800">Total</span>
-                            <span className="text-2xl font-black text-blue-600 tracking-tighter">R$ {(total || 0).toFixed(2)}</span>
+                        <div className="flex justify-between items-baseline pt-1">
+                            <span className="text-xs font-bold text-gray-900 dark:text-white">Total</span>
+                            <span className="text-xl font-black text-orange-600 dark:text-orange-400">R$ {(total || 0).toFixed(2)}</span>
                         </div>
                     </div>
                     <button
                         disabled={cart.length === 0}
                         onClick={() => setIsPaymentOpen(true)}
-                        className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-md hover:bg-blue-700 transition-all disabled:bg-gray-50 disabled:text-gray-300"
+                        className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest shadow-lg shadow-orange-900/20 hover:bg-orange-500 active:scale-[0.98] transition-all disabled:opacity-20 disabled:cursor-not-allowed border border-orange-500/50"
                     >
-                        Pagar Agora (F12)
+                        Pagamento (F12)
                     </button>
-                </footer>
-            </aside >
+                </div>
+            </aside>
 
+            {/* Modals */}
             {isCustomerModalOpen && (
                 <CustomerModal
                     initialRegister={customerModalMode === 'register'}
@@ -413,54 +379,39 @@ export default function POSView() {
                     onSelect={(c) => {
                         setSelectedCustomer(c);
                         setIsCustomerModalOpen(false);
-                        // If we were in "Debtors" mode, selecting one should probably open their Debt Modal?
-                        // Or just select them. The user can then click "Gerenciar Fiado" in the sidebar.
-                        // Let's just select them like normal.
-                        if (showDebtorsOnly) {
-                            setTimeout(() => setIsDebtModalOpen(true), 100);
+                        if (showDebtorsOnly) setTimeout(() => setIsDebtModalOpen(true), 100);
+                    }}
+                />
+            )}
+            {isDebtModalOpen && selectedCustomer && (
+                <DebtModal
+                    customer={selectedCustomer}
+                    onClose={() => setIsDebtModalOpen(false)}
+                    onUpdate={async () => {
+                        await refreshCustomers();
+                        if (selectedCustomer.cpf) {
+                            const res = await fetch(`/api/customers?cpf=${selectedCustomer.cpf}`);
+                            if (res.ok) setSelectedCustomer(await res.json());
+                        } else {
+                            const res = await fetch('/api/customers');
+                            if (res.ok) {
+                                const all = await res.json();
+                                const updated = all.find((c: any) => c._id === selectedCustomer._id || c.id === selectedCustomer.id);
+                                if (updated) setSelectedCustomer(updated);
+                            }
                         }
                     }}
                 />
             )}
-
-            {
-                isDebtModalOpen && selectedCustomer && (
-                    <DebtModal
-                        customer={selectedCustomer}
-                        onClose={() => setIsDebtModalOpen(false)}
-                        onUpdate={async () => {
-                            await refreshCustomers();
-                            // Re-fetch only this customer to update local state
-                            if (selectedCustomer.cpf) {
-                                const res = await fetch(`/api/customers?cpf=${selectedCustomer.cpf}`);
-                                if (res.ok) {
-                                    const updated = await res.json();
-                                    setSelectedCustomer(updated);
-                                }
-                            } else {
-                                const res = await fetch('/api/customers');
-                                if (res.ok) {
-                                    const all = await res.json();
-                                    const updated = all.find((c: any) => c._id === selectedCustomer._id || c.id === selectedCustomer.id);
-                                    if (updated) setSelectedCustomer(updated);
-                                }
-                            }
-                        }}
-                    />
-                )
-            }
-
-            {
-                isPaymentOpen && (
-                    <PaymentModal
-                        total={total}
-                        hasCustomer={!!selectedCustomer}
-                        customer={selectedCustomer}
-                        onCancel={() => setIsPaymentOpen(false)}
-                        onConfirm={handlePaymentConfirm}
-                    />
-                )
-            }
+            {isPaymentOpen && (
+                <PaymentModal
+                    total={total}
+                    hasCustomer={!!selectedCustomer}
+                    customer={selectedCustomer}
+                    onCancel={() => setIsPaymentOpen(false)}
+                    onConfirm={handlePaymentConfirm}
+                />
+            )}
         </div>
     );
 }

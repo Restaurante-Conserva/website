@@ -1,242 +1,207 @@
 "use client";
 
 import { useState } from 'react';
-import { X, History, Plus, Minus, Calendar, Receipt, User, ArrowLeft, Trash2, Check } from 'lucide-react';
-
-interface DebtEntry {
-    date: string;
-    type: 'addition' | 'payment' | 'adjustment';
-    description: string;
-    amount: number;
-    _id?: string;
-}
-
-interface Customer {
-    id: string;
-    _id?: string;
-    name: string;
-    debtBalance: number;
-    debtHistory: DebtEntry[];
-}
+import { X, Plus, Minus, ArrowLeft, Check, Calendar, Receipt, Loader2 } from 'lucide-react';
+import { useGlobal } from '../context/GlobalContext';
+import { useToast } from '../context/ToastContext';
 
 interface DebtModalProps {
-    customer: Customer;
+    customer: {
+        _id: string;
+        name: string;
+        debtBalance?: number;
+        debtHistory?: Array<{
+            _id?: string;
+            type: 'payment' | 'addition' | 'adjustment';
+            amount: number;
+            description: string;
+            date: string;
+        }>;
+    };
     onClose: () => void;
-    onUpdate: () => void;
 }
 
-export default function DebtModal({ customer, onClose, onUpdate }: DebtModalProps) {
+export default function DebtModal({ customer, onClose }: DebtModalProps) {
+    const { refreshCustomers } = useGlobal();
+    const { showToast } = useToast();
+
     const [view, setView] = useState<'list' | 'add'>('list');
-    const [loading, setLoading] = useState(false);
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
-    const [type, setType] = useState<'addition' | 'payment' | 'adjustment'>('payment');
+    const [type, setType] = useState<'payment' | 'addition' | 'adjustment'>('payment');
+    const [loading, setLoading] = useState(false);
 
     const handleSubmit = async () => {
-        const val = parseFloat(amount);
-        if (isNaN(val) || val <= 0) return;
-
+        if (!amount || parseFloat(amount) <= 0) return;
         setLoading(true);
         try {
-            // Update debt balance
-            let newBalance = customer.debtBalance;
-            if (type === 'addition') newBalance += val;
-            if (type === 'payment') newBalance = Math.max(0, newBalance - val);
-            if (type === 'adjustment') newBalance = val; // Assuming adjustment sets the value? Or delta? Let's say delta.
-
-            // Actually let's make adjustment a delta or setter. Setter is easier for "modificar".
-            const actualNewBalance = type === 'adjustment' ? val : (type === 'addition' ? customer.debtBalance + val : customer.debtBalance - val);
-
-            const res = await fetch('/api/customers', {
-                method: 'PUT',
+            const res = await fetch(`/api/customers/${customer._id}/debt`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id: customer.id || customer._id,
-                    debtBalance: actualNewBalance,
-                    debtHistory: [
-                        ...customer.debtHistory,
-                        {
-                            date: new Date().toISOString(),
-                            type,
-                            description: description || (type === 'payment' ? 'Pagamento manual' : type === 'addition' ? 'Acréscimo manual' : 'Ajuste de saldo'),
-                            amount: val
-                        }
-                    ]
+                    amount: parseFloat(amount),
+                    type,
+                    description: description || (type === 'payment' ? 'Pagamento manual' : type === 'addition' ? 'Consumo manual' : 'Ajuste de saldo')
                 })
             });
 
-            if (res.ok && type === 'payment') {
-                // Log in cash if payment
-                await fetch('/api/cash', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'transaction',
-                        type: 'in',
-                        amount: val,
-                        description: `Pagamento Fiado: ${customer.name}`
-                    })
-                });
+            if (res.ok) {
+                showToast('Lançamento realizado com sucesso!', 'success');
+                await refreshCustomers();
+                onClose();
+            } else {
+                const data = await res.json();
+                showToast(data.error || 'Erro ao processar', 'error');
             }
-
-            onUpdate();
-            setView('list');
-            setAmount('');
-            setDescription('');
-        } catch (e) {
-            alert("Erro ao atualizar débito");
+        } catch {
+            showToast('Erro técnico ao salvar', 'error');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100 font-sans text-sm">
-
-                <header className="p-6 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-10">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center shadow-inner">
-                            <History size={24} />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-extrabold text-gray-800 tracking-tight">Histórico de Fiados</h3>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{customer.name}</p>
-                        </div>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-md bg-white dark:bg-[#0a0a0a] border border-gray-100 dark:border-[#1a1a1a] rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+                {/* Header */}
+                <div className="px-5 py-4 flex items-center justify-between border-b border-gray-100 dark:border-[#1a1a1a] shrink-0">
+                    <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">Extrato de Débitos</p>
+                        <p className="text-xs text-gray-400 dark:text-[#555] mt-0.5">{customer.name}</p>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="text-right">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase block tracking-widest leading-none mb-1">Saldo Devedor</span>
-                            <span className="text-xl font-black text-red-600 tracking-tighter">R$ {(customer.debtBalance || 0).toFixed(2)}</span>
-                        </div>
-                        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl text-gray-300 transition-all border-none bg-transparent cursor-pointer">
-                            <X size={20} />
-                        </button>
-                    </div>
-                </header>
+                    <button onClick={onClose} className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1a1a1a] border-none bg-transparent cursor-pointer transition-all">
+                        <X size={16} />
+                    </button>
+                </div>
 
-                <div className="flex-1 overflow-y-auto p-6 min-h-[400px]">
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' }}>
                     {view === 'list' ? (
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center mb-6">
-                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Últimas Movimentações</h4>
+                            {/* Balance card */}
+                            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-black border border-gray-100 dark:border-[#1a1a1a] rounded-lg">
+                                <div>
+                                    <p className="text-xs text-gray-400 dark:text-[#555] mb-0.5">Saldo devedor</p>
+                                    <p className={`text-xl font-medium tabular-nums ${(customer.debtBalance || 0) > 0 ? 'text-red-600 dark:text-red-500' : 'text-gray-900 dark:text-white'}`}>
+                                        R$ {(customer.debtBalance || 0).toFixed(2)}
+                                    </p>
+                                </div>
                                 <button
                                     onClick={() => setView('add')}
-                                    className="bg-gray-900 text-white px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 border-none cursor-pointer"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-xs rounded-md border-none cursor-pointer transition-all"
                                 >
-                                    <Plus size={14} /> Registrar Novo
+                                    <Plus size={13} /> Lançamento
                                 </button>
                             </div>
 
-                            {customer.debtHistory && customer.debtHistory.length > 0 ? (
-                                <div className="space-y-2">
-                                    {[...customer.debtHistory].reverse().map((entry, i) => (
-                                        <div key={entry._id || i} className="bg-gray-50/50 border border-gray-100 p-4 rounded-2xl flex items-center justify-between group hover:bg-white hover:border-blue-100 transition-all">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${entry.type === 'payment' ? 'bg-green-100 text-green-600' :
-                                                    entry.type === 'addition' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+                            {/* History */}
+                            <div className="space-y-1">
+                                <p className="text-xs text-gray-400 dark:text-[#555] mb-2">Movimentações</p>
+                                {(!customer.debtHistory || customer.debtHistory.length === 0) ? (
+                                    <div className="py-8 flex flex-col items-center justify-center text-gray-300 dark:text-[#333]">
+                                        <Receipt size={28} className="mb-2 opacity-50" />
+                                        <p className="text-xs text-gray-400 dark:text-[#555]">Nenhum histórico disponível</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-1">
+                                        {[...customer.debtHistory].reverse().map((entry, i) => (
+                                            <div key={entry._id || i} className="px-3 py-2.5 rounded-lg border border-gray-100 dark:border-[#1a1a1a] bg-white dark:bg-[#0a0a0a] flex items-center justify-between hover:bg-gray-50 dark:hover:bg-black transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+                                                        entry.type === 'payment'
+                                                            ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-500'
+                                                            : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-500'
                                                     }`}>
-                                                    {entry.type === 'payment' ? <Minus size={14} /> : entry.type === 'addition' ? <Plus size={14} /> : <Receipt size={14} />}
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-gray-800 uppercase tracking-tight line-clamp-1">{entry.description}</p>
-                                                    <div className="flex items-center gap-2 mt-0.5 text-[8px] text-gray-400 font-bold uppercase">
-                                                        <Calendar size={10} />
-                                                        {new Date(entry.date).toLocaleString('pt-BR')}
+                                                        {entry.type === 'payment' ? <Minus size={12} /> : <Plus size={12} />}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-700 dark:text-gray-300">{entry.description}</p>
+                                                        <p className="text-[10px] text-gray-400 dark:text-[#555] flex items-center gap-1 mt-0.5">
+                                                            <Calendar size={10} />
+                                                            {new Date(entry.date).toLocaleDateString('pt-BR')} · {new Date(entry.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                        </p>
                                                     </div>
                                                 </div>
+                                                <p className={`text-sm font-medium tabular-nums ${entry.type === 'payment' ? 'text-emerald-600 dark:text-emerald-500' : 'text-red-600 dark:text-red-500'}`}>
+                                                    {entry.type === 'payment' ? '-' : '+'} R$ {entry.amount.toFixed(2)}
+                                                </p>
                                             </div>
-                                            <div className="flex items-center gap-4">
-                                                <span className={`text-xs font-black tracking-tight ${entry.type === 'payment' ? 'text-green-600' :
-                                                    entry.type === 'addition' ? 'text-red-600' : 'text-blue-600'
-                                                    }`}>
-                                                    {entry.type === 'payment' ? '-' : entry.type === 'addition' ? '+' : ''} R$ {entry.amount.toFixed(2)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="py-20 flex flex-col items-center justify-center text-gray-300 opacity-60">
-                                    <Receipt size={48} className="mb-4" />
-                                    <p className="text-[10px] font-bold uppercase tracking-widest">Nenhuma movimentação encontrada</p>
-                                </div>
-                            )}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     ) : (
-                        <div className="max-w-md mx-auto py-8 animate-in slide-in-from-bottom duration-300">
-                            <button onClick={() => setView('list')} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 mb-8 transition-all border-none bg-transparent cursor-pointer">
-                                <ArrowLeft size={16} />
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Voltar para o histórico</span>
+                        <div className="space-y-4 animate-in slide-in-from-right-4 duration-200">
+                            <button onClick={() => setView('list')} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border-none bg-transparent cursor-pointer transition-colors">
+                                <ArrowLeft size={14} /> Voltar
                             </button>
 
-                            <h4 className="text-lg font-black text-gray-800 tracking-tight mb-8">Novo registro de dívida</h4>
-
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-3 gap-2">
+                            {/* Type selector */}
+                            <div>
+                                <p className="text-xs text-gray-400 dark:text-[#555] mb-2">Tipo</p>
+                                <div className="flex gap-1.5 p-1 bg-gray-50 dark:bg-black border border-gray-100 dark:border-[#1a1a1a] rounded-lg">
                                     {(['payment', 'addition', 'adjustment'] as const).map(t => (
                                         <button
                                             key={t}
                                             onClick={() => setType(t)}
-                                            className={`p-3 rounded-2xl border text-[9px] font-bold uppercase tracking-widest transition-all ${type === t ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'
-                                                } cursor-pointer`}
+                                            className={`flex-1 py-2 text-xs rounded-md transition-all border-none cursor-pointer ${
+                                                type === t
+                                                    ? t === 'payment' ? 'bg-emerald-600 text-white' : t === 'addition' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                                                    : 'text-gray-500 dark:text-[#555] hover:text-gray-700 dark:hover:text-gray-300'
+                                            }`}
                                         >
-                                            {t === 'payment' ? 'Pagamento' : t === 'addition' ? 'Consumo' : 'Ajustar Total'}
+                                            {t === 'payment' ? 'Pagamento' : t === 'addition' ? 'Consumo' : 'Ajuste'}
                                         </button>
                                     ))}
                                 </div>
+                            </div>
 
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Valor do lançamento</label>
-                                    <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-gray-300">R$</span>
-                                        <input
-                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 py-4 text-2xl font-bold outline-none focus:bg-white focus:border-blue-500 transition-all font-sans"
-                                            type="number"
-                                            placeholder="0,00"
-                                            value={amount}
-                                            onChange={e => setAmount(e.target.value)}
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <p className="text-[8px] text-gray-400 ml-1 font-medium mt-1 uppercase">
-                                        {type === 'adjustment' ? 'O saldo total do cliente passará a ser este valor.' : `Este valor será ${type === 'payment' ? 'subtraído da' : 'adicionado à'} dívida.`}
-                                    </p>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Descrição / Motivo</label>
+                            {/* Amount */}
+                            <div>
+                                <p className="text-xs text-gray-400 dark:text-[#555] mb-2">Valor</p>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-[#555]">R$</span>
                                     <input
-                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-4 text-xs font-bold outline-none focus:bg-white focus:border-blue-500 transition-all placeholder:text-gray-300 uppercase"
-                                        type="text"
-                                        placeholder="Ex: Compra do dia 05/01, Pagamento em Dinheiro..."
-                                        value={description}
-                                        onChange={e => setDescription(e.target.value)}
+                                        className="w-full bg-gray-50 dark:bg-black border border-gray-100 dark:border-[#1a1a1a] rounded-lg pl-9 pr-4 py-3 text-2xl font-medium outline-none focus:border-orange-500/50 transition-all text-gray-900 dark:text-white placeholder:text-gray-200 dark:placeholder:text-[#222]"
+                                        type="number"
+                                        value={amount}
+                                        onChange={e => setAmount(e.target.value)}
+                                        placeholder="0.00"
+                                        autoFocus
                                     />
                                 </div>
-
-                                <button
-                                    disabled={loading || !amount}
-                                    onClick={handleSubmit}
-                                    className="w-full bg-blue-600 text-white py-5 rounded-2xl font-bold text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/10 active:scale-95 flex items-center justify-center gap-3 border-none cursor-pointer disabled:opacity-50"
-                                >
-                                    {loading ? <Loader2 className="animate-spin" size={20} /> : (
-                                        <>
-                                            <Check size={18} />
-                                            <span>CONFIRMAR LANÇAMENTO</span>
-                                        </>
-                                    )}
-                                </button>
                             </div>
+
+                            {/* Note */}
+                            <div>
+                                <p className="text-xs text-gray-400 dark:text-[#555] mb-2">Observação</p>
+                                <input
+                                    className="w-full bg-gray-50 dark:bg-black border border-gray-100 dark:border-[#1a1a1a] rounded-lg px-3 py-2.5 text-xs outline-none focus:border-orange-500/50 text-gray-900 dark:text-white transition-all placeholder:text-gray-300 dark:placeholder:text-[#333]"
+                                    value={description}
+                                    onChange={e => setDescription(e.target.value)}
+                                    placeholder="Motivo do lançamento..."
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleSubmit}
+                                disabled={loading || !amount}
+                                className="w-full bg-gray-900 dark:bg-white text-white dark:text-black text-xs py-3 rounded-lg hover:bg-black dark:hover:bg-gray-100 transition-all disabled:opacity-40 border-none cursor-pointer flex items-center justify-center gap-2"
+                            >
+                                {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                Confirmar Lançamento
+                            </button>
                         </div>
                     )}
                 </div>
 
+                <div className="px-5 py-3 border-t border-gray-100 dark:border-[#1a1a1a] shrink-0">
+                    <p className="text-[10px] text-gray-400 dark:text-[#333] text-center">
+                        Movimentações refletem no saldo global do cliente
+                    </p>
+                </div>
             </div>
         </div>
     );
-}
-
-function Loader2({ className, size }: { className?: string, size?: number }) {
-    return <History className={`animate-spin ${className}`} size={size} />;
 }

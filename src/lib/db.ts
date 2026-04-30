@@ -134,9 +134,15 @@ class Database {
     }
 
     // SALES
-    async getSales(limit?: number) {
+    async getSales(limit?: number, from?: string, to?: string) {
         await dbConnect();
-        const query = Sale.find({}).sort({ date: -1 }).lean();
+        const filter: any = {};
+        if (from || to) {
+            filter.date = {};
+            if (from) filter.date.$gte = new Date(from + 'T00:00:00');
+            if (to) filter.date.$lte = new Date(to + 'T23:59:59');
+        }
+        const query = Sale.find(filter).sort({ date: -1 }).lean();
         if (limit) query.limit(limit);
         return await query;
     }

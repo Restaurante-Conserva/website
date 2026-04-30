@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { SystemProvider } from "@/context/SystemContext";
-import { NotificationProvider } from "@/context/NotificationContext";
+import { ToastProvider } from "@/context/ToastContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -36,11 +36,11 @@ export default function RootLayout({
         <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/1046/1046788.png" />
       </head>
       <body className={inter.className}>
-        <NotificationProvider>
+        <ToastProvider>
           <SystemProvider>
             {children}
           </SystemProvider>
-        </NotificationProvider>
+        </ToastProvider>
       </body>
     </html>
   );

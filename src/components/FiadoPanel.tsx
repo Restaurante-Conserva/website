@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Search, DollarSign, User, ClipboardList, ShoppingBag, ArrowLeftCircle, Loader2, X, TrendingUp, Users, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, DollarSign, ClipboardList, ShoppingBag, ArrowLeftCircle, Loader2, X, TrendingUp, Users, CheckCircle2, AlertCircle } from 'lucide-react';
 import PaymentModal from './PaymentModal';
+import StatCard from './admin/StatCard';
+import { useToast } from '../context/ToastContext';
 
 interface FiadoSale {
-    id: string; // Mapeado do virtual 'id' ou '_id'
+    id: string;
     _id?: string;
     customer: {
         id?: string;
@@ -28,12 +30,12 @@ interface FiadoSale {
 }
 
 export default function FiadoPanel({ setView }: { setView: (view: any) => void }) {
+    const { showToast } = useToast();
     const [fiadoSales, setFiadoSales] = useState<FiadoSale[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     useEffect(() => {
         fetchFiadoSales();
@@ -45,7 +47,6 @@ export default function FiadoPanel({ setView }: { setView: (view: any) => void }
             const res = await fetch('/api/sales');
             if (res.ok) {
                 const allSales = await res.json();
-                // Filtramos vendas que têm saldo fiado pendente > 1 centavo
                 const fiado = allSales.filter((sale: any) =>
                     sale.payments?.some((p: any) => p.method === 'fiado' && p.amount > 0.01)
                 );
@@ -53,13 +54,13 @@ export default function FiadoPanel({ setView }: { setView: (view: any) => void }
             }
         } catch (error) {
             console.error('Erro ao buscar vendas fiadas:', error);
+            showToast('Erro ao carregar dados financeiros.', 'error');
         } finally {
             setIsLoading(false);
         }
     };
 
     const groupedByCustomer = fiadoSales.reduce((acc, sale) => {
-        // PRIORIDADE: ID do MongoDB. Se não tiver, usa CPF ou Nome.
         const custId = sale.customer?._id || sale.customer?.id || sale.customer?.cpf || sale.customer?.name || 'unidentified';
         if (!acc[custId]) {
             acc[custId] = {
@@ -83,7 +84,6 @@ export default function FiadoPanel({ setView }: { setView: (view: any) => void }
         if (!selectedCustomer) return;
 
         setIsLoading(true);
-        setMessage(null);
 
         const totalPaidNow = payments.reduce((acc, p) => acc + p.amount, 0);
         let remainingToPay = totalPaidNow;
@@ -121,14 +121,13 @@ export default function FiadoPanel({ setView }: { setView: (view: any) => void }
                 });
 
                 const saleId = (sale as any)._id || sale.id;
-                console.log(`[FIADO DEBUG] Patching sale ${saleId} with amount ${paymentForThisSale}`);
 
                 const res = await fetch(`/api/sales/${saleId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         payments: newPayments,
-                        isFiscal: false // Fiado não gera nota NFC
+                        isFiscal: false
                     })
                 });
 
@@ -154,7 +153,6 @@ export default function FiadoPanel({ setView }: { setView: (view: any) => void }
                     }
                 } else {
                     const errorData = await res.json();
-                    console.error(`[FIADO DEBUG] Failed to patch sale ${saleId}:`, errorData);
                     throw new Error(`Erro ao abater nota ${saleId}`);
                 }
             }
@@ -194,12 +192,11 @@ export default function FiadoPanel({ setView }: { setView: (view: any) => void }
                 }).catch(err => console.error('Erro ao abater saldo global:', err));
             }
 
-            setMessage({ type: 'success', text: `Recebimento de R$ ${totalPaidNow.toFixed(2)} processado!` });
-            setTimeout(() => setMessage(null), 5000);
+            showToast(`Recebimento de R$ ${totalPaidNow.toFixed(2)} processado!`, 'success');
 
         } catch (error: any) {
             console.error('Erro no processamento:', error);
-            setMessage({ type: 'error', text: error.message || 'Erro ao processar pagamentos.' });
+            showToast(error.message || 'Erro ao processar pagamentos.', 'error');
         } finally {
             await fetchFiadoSales();
             setIsLoading(false);
@@ -208,126 +205,122 @@ export default function FiadoPanel({ setView }: { setView: (view: any) => void }
         }
     };
 
+    const totalToReceive = Object.values(groupedByCustomer).reduce((sum, c) => sum + (c as any).totalDebt, 0);
+
     return (
-        <div className="absolute inset-0 bg-white z-[100] flex flex-col font-sans text-sm animate-in fade-in duration-300">
-            <header className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-                <div className="flex items-center gap-3">
+        <div className="flex h-full flex-col font-sans text-sm bg-gray-50 dark:bg-[#0c0c0c] text-gray-900 dark:text-white overflow-hidden transition-colors">
+            <header className="px-10 py-6 border-b border-gray-200 dark:border-[#1a1a1a] flex flex-wrap md:flex-nowrap items-center justify-between gap-8 shrink-0 bg-white dark:bg-[#0c0c0c] shadow-sm dark:shadow-none">
+                <div className="flex items-center gap-6">
                     <button
                         onClick={() => setView('pos')}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-blue-600 transition-colors bg-transparent border-none cursor-pointer"
+                        className="p-2.5 hover:bg-gray-100 dark:hover:bg-white/[0.05] rounded-xl text-gray-400 dark:text-[#333] hover:text-orange-600 dark:hover:text-orange-500 transition-all bg-transparent border-none cursor-pointer"
                     >
-                        <ArrowLeftCircle size={18} />
+                        <ArrowLeftCircle size={24} />
                     </button>
-                    <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-                        <ClipboardList size={14} />
+                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-600/10 rounded-2xl flex items-center justify-center text-orange-600 dark:text-orange-500 shadow-sm border border-orange-200 dark:border-orange-500/20">
+                        <ClipboardList size={24} />
                     </div>
                     <div>
-                        <h2 className="text-[13px] font-bold text-gray-800 leading-tight">Fiados</h2>
-                        <p className="text-[8px] text-gray-400 font-semibold uppercase tracking-wider">Gestão de Crédito</p>
+                        <h2 className="text-xl font-black leading-tight text-gray-900 dark:text-white uppercase tracking-tight">Gestão de Fiados</h2>
+                        <p className="text-[10px] text-gray-500 dark:text-[#444] font-black uppercase tracking-[0.2em] mt-1">Monitoramento de Crédito & Abatimentos</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    {message && (
-                        <div className={`px-3 py-1.5 rounded-lg text-[9px] font-bold flex items-center gap-2 animate-in slide-in-from-top-2 ${message.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                            {message.type === 'success' ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
-                            {message.text}
-                        </div>
-                    )}
-                    <div className="relative group w-64 md:w-80">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" size={12} />
+                <div className="flex items-center gap-6 w-full md:w-auto">
+                    <div className="relative group w-full md:w-96">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#333] group-focus-within:text-orange-500 transition-colors" size={16} />
                         <input
                             type="text"
-                            placeholder="Buscar cliente..."
+                            placeholder="Buscar cliente ou CPF..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-8 pr-4 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-medium outline-none focus:bg-white focus:border-blue-500 transition-all"
+                            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-[#1a1a1a] rounded-xl pl-12 pr-4 py-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#222] outline-none focus:border-orange-500/50 transition-all shadow-inner dark:shadow-none"
                         />
                     </div>
-                    <button onClick={() => setView('pos')} className="p-1 text-gray-300 hover:text-gray-500 transition-colors bg-transparent border-none cursor-pointer">
-                        <X size={18} />
+                    <button onClick={() => setView('pos')} className="p-2 text-gray-400 dark:text-[#222] hover:text-gray-800 dark:hover:text-white transition-colors bg-transparent border-none cursor-pointer">
+                        <X size={24} />
                     </button>
                 </div>
             </header>
 
             <div className="flex flex-1 overflow-hidden">
-                <main className="flex-1 overflow-y-auto p-8 bg-white">
-                    <div className="max-w-5xl mx-auto space-y-6">
+                <main className="flex-1 overflow-y-auto p-6 md:p-10" style={{ scrollbarWidth: 'thin' }}>
+                    <div className="max-w-7xl mx-auto space-y-10">
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <StatCard
-                                title="Total a Receber"
-                                value={`R$ ${Object.values(groupedByCustomer).reduce((sum, c) => sum + (c as any).totalDebt, 0).toFixed(2).replace('.', ',')}`}
-                                icon={<TrendingUp size={16} />}
+                                title="Total Pendente"
+                                value={`R$ ${totalToReceive.toFixed(2).replace('.', ',')}`}
+                                icon={<TrendingUp size={20} />}
                                 trend="Saldo Devedor"
-                                color="text-red-600"
+                                color="text-red-600 dark:text-red-500"
                             />
                             <StatCard
-                                title="Clientes Devedores"
+                                title="Clientes com Débito"
                                 value={Object.keys(groupedByCustomer).length.toString()}
-                                icon={<Users size={16} />}
-                                trend="Ativos"
-                                color="text-blue-600"
+                                icon={<Users size={20} />}
+                                color="text-orange-600 dark:text-orange-500"
                             />
                             <StatCard
                                 title="Média por Cliente"
-                                value={`R$ ${(Object.values(groupedByCustomer).reduce((sum, c) => sum + (c as any).totalDebt, 0) / (Object.keys(groupedByCustomer).length || 1)).toFixed(2).replace('.', ',')}`}
-                                icon={<DollarSign size={16} />}
-                                trend="Ticket Médio"
-                                color="text-gray-600"
+                                value={`R$ ${(totalToReceive / (Object.keys(groupedByCustomer).length || 1)).toFixed(2).replace('.', ',')}`}
+                                icon={<DollarSign size={20} />}
+                                color="text-blue-600 dark:text-blue-500"
                             />
                         </div>
 
                         {isLoading && fiadoSales.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-20 text-gray-300 gap-3">
-                                <Loader2 className="animate-spin" size={32} />
-                                <p className="font-bold text-[10px] tracking-widest uppercase">Carregando dados financeiros...</p>
+                            <div className="flex flex-col items-center justify-center py-32 text-gray-400 dark:text-[#222] gap-6">
+                                <Loader2 className="animate-spin text-orange-500" size={48} />
+                                <p className="font-black text-[10px] tracking-[0.3em] uppercase">Sincronizando registros...</p>
                             </div>
                         ) : filteredCustomers.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-20 opacity-30 grayscale">
-                                <ShoppingBag size={48} className="text-gray-400 mb-4" />
-                                <p className="text-[11px] font-bold uppercase tracking-widest">Nenhuma pendência encontrada</p>
+                            <div className="flex flex-col items-center justify-center py-32 opacity-20 grayscale">
+                                <ShoppingBag size={80} className="mb-6" />
+                                <p className="text-[10px] font-black uppercase tracking-[0.4em]">Sem pendências ativas</p>
                             </div>
                         ) : (
-                            <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm bg-white">
-                                <table className="w-full text-left text-[10px]">
-                                    <thead className="bg-gray-50/50 border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider text-[8px]">
+                            <div className="border border-gray-100 dark:border-[#1a1a1a] rounded-2xl overflow-hidden shadow-sm dark:shadow-none bg-white dark:bg-[#0a0a0a]">
+                                <table className="w-full text-left">
+                                    <thead className="bg-gray-50 dark:bg-black border-b border-gray-100 dark:border-[#1a1a1a] text-gray-400 dark:text-[#444] font-black uppercase tracking-[0.15em] text-[10px]">
                                         <tr>
-                                            <th className="px-6 py-3">Cliente</th>
-                                            <th className="px-6 py-3">Pendências</th>
-                                            <th className="px-6 py-3">Saldo Devedor</th>
-                                            <th className="px-6 py-3 text-right">Ação</th>
+                                            <th className="px-10 py-6">Cliente devedor</th>
+                                            <th className="px-10 py-6 text-center">Títulos</th>
+                                            <th className="px-10 py-6">Valor Total</th>
+                                            <th className="px-10 py-6 text-right w-48">Ação</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-50">
+                                    <tbody className="divide-y divide-gray-50 dark:divide-[#111]">
                                         {filteredCustomers.map(({ customer, sales, totalDebt }: any, i) => (
-                                            <tr key={customer._id || customer.id || customer.cpf || `cust-${i}`} className="hover:bg-gray-50/10 transition-colors group">
-                                                <td className="px-6 py-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs uppercase">
+                                            <tr key={customer._id || customer.id || customer.cpf || `cust-${i}`} className="hover:bg-gray-50 dark:hover:bg-black transition-all group border-none">
+                                                <td className="px-10 py-7">
+                                                    <div className="flex items-center gap-5">
+                                                        <div className="w-12 h-12 rounded-xl bg-orange-100 dark:bg-orange-600/10 text-orange-600 dark:text-orange-500 flex items-center justify-center font-black text-lg uppercase border border-orange-200 dark:border-orange-500/20 shadow-sm transition-transform group-hover:scale-110">
                                                             {customer.name?.charAt(0)}
                                                         </div>
                                                         <div className="flex flex-col">
-                                                            <span className="font-bold text-gray-800 uppercase tabular-nums">{customer.name}</span>
-                                                            <span className="text-[8px] text-gray-400 font-medium">{customer.cpf || 'Sem CPF'}</span>
+                                                            <span className="font-black text-gray-900 dark:text-gray-100 uppercase tracking-tight text-sm">{customer.name}</span>
+                                                            <span className="text-[10px] text-gray-400 dark:text-[#333] font-black mt-1 tracking-widest uppercase">{customer.cpf || 'Documento não informado'}</span>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-3">
-                                                    <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[8px] font-bold uppercase">{sales.length} Notas</span>
+                                                <td className="px-10 py-7 text-center">
+                                                    <span className="bg-gray-100 dark:bg-[#151515] text-gray-500 dark:text-[#555] px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-gray-200 dark:border-[#222]">
+                                                        {sales.length} {sales.length === 1 ? 'Título' : 'Títulos'}
+                                                    </span>
                                                 </td>
-                                                <td className="px-6 py-3">
-                                                    <span className="text-sm font-bold text-gray-900 tabular-nums">R$ {totalDebt.toFixed(2)}</span>
+                                                <td className="px-10 py-7">
+                                                    <span className="text-xl font-black text-red-600 dark:text-red-500 tabular-nums tracking-tight">R$ {totalDebt.toFixed(2)}</span>
                                                 </td>
-                                                <td className="px-6 py-3 text-right">
+                                                <td className="px-10 py-7 text-right">
                                                     <button
                                                         onClick={() => {
                                                             setSelectedCustomer({ customer, sales, totalDebt });
                                                             setIsPaymentOpen(true);
                                                         }}
-                                                        className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[9px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-all border-none cursor-pointer flex items-center gap-2 ml-auto shadow-lg shadow-blue-100 active:scale-95"
+                                                        className="px-8 py-3.5 bg-orange-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-500 hover:scale-[1.02] transition-all border-none cursor-pointer flex items-center justify-center gap-3 ml-auto shadow-xl shadow-orange-600/10 active:scale-95"
                                                     >
-                                                        <DollarSign size={14} />
+                                                        <DollarSign size={16} />
                                                         Receber
                                                     </button>
                                                 </td>
@@ -353,19 +346,6 @@ export default function FiadoPanel({ setView }: { setView: (view: any) => void }
                     onConfirm={handlePaymentComplete}
                 />
             )}
-        </div>
-    );
-}
-
-function StatCard({ title, value, icon, trend, color }: any) {
-    return (
-        <div className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all group">
-            <div className="flex justify-between items-center mb-4">
-                <div className={`p-2 bg-gray-50 rounded-lg group-hover:bg-current/10 transition-colors ${color}`}>{icon}</div>
-                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full bg-gray-50 ${color}`}>{trend}</span>
-            </div>
-            <p className="text-[9px] font-bold text-gray-400 tracking-wider mb-0.5 uppercase">{title}</p>
-            <h4 className="text-xl font-bold text-gray-900 tracking-tight tabular-nums">{value}</h4>
         </div>
     );
 }
