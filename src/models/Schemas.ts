@@ -91,7 +91,8 @@ const ConfigSchema = new Schema({
         regime_tributario: { type: String, default: '1' }, // 1 = Simples Nacional
         csc_token: String,
         csc_id: String,
-        environment: { type: String, default: 'homologacao' }
+        environment: { type: String, default: 'homologacao' },
+        focusToken: String
     }
 });
 

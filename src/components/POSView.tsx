@@ -83,25 +83,54 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                 body: JSON.stringify(saleData)
             });
             if (res.ok) {
-                const savedSale = await res.json();
-                let printType = 'receipt';
-                if (isFiscal && isCustomerCopy) printType = 'both';
-                else if (isFiscal) printType = 'fiscal';
-                const printerPayload = {
-                    type: printType, isMerchantCopy, fiadoTaker, items: cart,
-                    total: savedSale.total, subtotal: savedSale.subtotal || savedSale.total,
-                    discount: savedSale.discount || 0, payments: savedSale.payments,
-                    customer: savedSale.customer, paidAmount: savedSale.paidAmount,
-                    date: savedSale.date, qrcode_url: savedSale.qrcode_url,
-                    nfeQRCode: savedSale.nfeQRCode, nfeNumber: savedSale.nfeNumber,
-                    nfeSeries: savedSale.nfeSeries, fiscalReference: savedSale.fiscalReference,
-                    nfeId: savedSale.nfeId, nfeExternalUrl: savedSale.nfeExternalUrl,
-                    nfeMessage: savedSale.nfeMessage, fiscalData: savedSale.fiscalData
-                };
-                fetch('http://localhost:7777/print', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(printerPayload)
-                }).catch(err => console.error("[POS] Printer offline:", err));
+                let savedSale = await res.json();
+                
+                // If fiscal, call the Focus NFE API to emit NFC-e before printing
+                if (finalIsFiscal) {
+                    try {
+                        const fiscalRes = await fetch('/api/fiscal/nfe', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ saleId: savedSale._id || savedSale.id })
+                        });
+                        const fiscalData = await fiscalRes.json();
+                        if (fiscalData.success) {
+                            // Update the savedSale object with the returned fiscal data so the printer gets it
+                            savedSale = {
+                                ...savedSale,
+                                nfeQRCode: fiscalData.info?.qrcode_url || fiscalData.info?.url_danfe,
+                                nfeExternalUrl: fiscalData.info?.caminho_xml_nota_fiscal
+                            };
+                            showToast('NFC-e enviada para processamento!', 'success');
+                        } else {
+                            showToast('Erro ao emitir NFC-e: ' + (fiscalData.details || fiscalData.error), 'error');
+                        }
+                    } catch (e) {
+                        showToast('Erro ao contatar API Fiscal', 'error');
+                    }
+                }
+
+                let printType = isCustomerCopy ? 'receipt' : 'none';
+                if (finalIsFiscal && isCustomerCopy) printType = 'both';
+                else if (finalIsFiscal) printType = 'fiscal';
+                
+                if (printType !== 'none' || isMerchantCopy) {
+                    const printerPayload = {
+                        type: printType, isMerchantCopy, fiadoTaker, items: cart,
+                        total: savedSale.total, subtotal: savedSale.subtotal || savedSale.total,
+                        discount: savedSale.discount || 0, payments: savedSale.payments,
+                        customer: savedSale.customer, paidAmount: savedSale.paidAmount,
+                        date: savedSale.date, qrcode_url: savedSale.qrcode_url,
+                        nfeQRCode: savedSale.nfeQRCode, nfeNumber: savedSale.nfeNumber,
+                        nfeSeries: savedSale.nfeSeries, fiscalReference: savedSale.fiscalReference,
+                        nfeId: savedSale.nfeId, nfeExternalUrl: savedSale.nfeExternalUrl,
+                        nfeMessage: savedSale.nfeMessage, fiscalData: savedSale.fiscalData
+                    };
+                    fetch('http://localhost:7777/print', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(printerPayload)
+                    }).catch(err => console.error("[POS] Printer offline:", err));
+                }
+                
                 setCart([]); setSelectedCustomer(null); setIsPaymentOpen(false);
                 refreshProducts();
                 showToast('Venda finalizada com sucesso!', 'success');

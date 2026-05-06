@@ -26,9 +26,10 @@ export class FocusNFe {
     private token: string;
     private baseUrl: string;
 
-    constructor() {
-        this.token = process.env.FOCUS_API_KEY || '';
-        this.baseUrl = process.env.FOCUS_URL || 'https://homologacao.focusnfe.com.br';
+    constructor(token?: string, environment?: string) {
+        this.token = token || process.env.FOCUS_API_KEY || '';
+        const isProd = environment === 'producao';
+        this.baseUrl = isProd ? 'https://api.focusnfe.com.br' : (process.env.FOCUS_URL || 'https://homologacao.focusnfe.com.br');
     }
 
     public isConfigured(): boolean {

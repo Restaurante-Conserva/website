@@ -169,68 +169,80 @@ async function buildFiscalReceiptFooter(printer, data) {
 
 function buildNonFiscalReceipt(printer, data) {
     printer.font('a').align('ct').style('b');
-    printTxt(printer, 'RESTAURANTE E PIZZARIA CONSERVA');
-    printer.style('n');
-    printTxt(printer, 'RECIBO DE PAGAMENTO (NAO FISCAL)');
-    printTxt(printer, '-'.repeat(WIDTH));
+    printTxt(printer, 'RESTAURANTE CONSERVA');
+    printer.font('b').style('n');
+    printTxt(printer, 'DOCUMENTO NAO FISCAL');
+    printTxt(printer, '-'.repeat(WIDTH * 1.3)); // Font B is smaller, fits more chars
 
-    printer.font('b').align('lt');
+    printer.align('lt');
     (data.items || []).forEach((item, i) => {
-        const name = truncateName((item.name || '').toUpperCase(), 30).padEnd(30, ' ');
-        const total = parseFloat(item.total || ((item.price || 0) * (item.quantity || 0))).toFixed(2).padStart(10, ' ');
-        printTxt(printer, `${name} ${total}`);
-        if (item.quantity > 1 || item.price) {
-            printTxt(printer, `   ${item.quantity} UN x ${parseFloat(item.price || 0).toFixed(2)}`);
+        const name = truncateName((item.name || '').toUpperCase(), 35).padEnd(35, ' ');
+        const itemTotal = parseFloat(item.total || ((item.price || 0) * (item.quantity || 0))).toFixed(2);
+        
+        if (item.quantity > 1) {
+            printTxt(printer, `${item.quantity}x ${name} ${itemTotal.padStart(8, ' ')}`);
+        } else {
+            printTxt(printer, `1x ${name} ${itemTotal.padStart(8, ' ')}`);
         }
     });
-    printTxt(printer, '-'.repeat(WIDTH));
-    printer.font('a');
-
-    printer.align('rt').style('b');
-    printTxt(printer, `TOTAL R$: ${parseFloat(data.total || 0).toFixed(2).replace('.', ',')}`);
-    printer.style('n');
-    printTxt(printer, '-'.repeat(WIDTH));
-
-    printer.align('ct');
-    if (data.customer && data.customer.name) {
-        printTxt(printer, `CLIENTE: ${data.customer.name.toUpperCase()}`);
+    
+    printTxt(printer, '-'.repeat(WIDTH * 1.3));
+    
+    printer.font('a').align('rt').style('b');
+    printTxt(printer, `TOTAL: R$ ${parseFloat(data.total || 0).toFixed(2).replace('.', ',')}`);
+    
+    if (data.discount > 0) {
+        printer.font('b').style('n');
+        printTxt(printer, `DESCONTO: R$ ${parseFloat(data.discount).toFixed(2).replace('.', ',')}`);
     }
-    printTxt(printer, 'Este documento nao e nota fiscal');
+    
+    printer.style('n').align('ct').font('b');
+    printTxt(printer, '-'.repeat(WIDTH * 1.3));
+    
+    if (data.customer && data.customer.name) {
+        printer.style('b');
+        printTxt(printer, `CLIENTE: ${truncateName(data.customer.name.toUpperCase(), 30)}`);
+        printer.style('n');
+    }
+    
     printTxt(printer, new Date().toLocaleString('pt-BR'));
+    printTxt(printer, 'Volte sempre!');
 }
 
 function buildMerchantReceipt(printer, data) {
     printer.font('a').align('ct').style('b');
-    printTxt(printer, 'RESTAURANTE E PIZZARIA CONSERVA');
-    printer.style('n');
+    printTxt(printer, 'RESTAURANTE CONSERVA');
+    printer.font('b').style('n');
     printTxt(printer, 'VIA DO ESTABELECIMENTO');
-    printTxt(printer, '-'.repeat(WIDTH));
+    printTxt(printer, '-'.repeat(WIDTH * 1.3));
 
-    printer.font('b').align('lt');
+    printer.align('lt');
     (data.items || []).forEach((item, i) => {
-        const name = truncateName((item.name || '').toUpperCase(), 30).padEnd(30, ' ');
-        const total = parseFloat(item.total || ((item.price || 0) * (item.quantity || 0))).toFixed(2).padStart(10, ' ');
-        printTxt(printer, `${name} ${total}`);
+        const name = truncateName((item.name || '').toUpperCase(), 35).padEnd(35, ' ');
+        const itemTotal = parseFloat(item.total || ((item.price || 0) * (item.quantity || 0))).toFixed(2);
+        printTxt(printer, `${item.quantity}x ${name} ${itemTotal.padStart(8, ' ')}`);
     });
-    printTxt(printer, '-'.repeat(WIDTH));
-    printer.font('a');
+    
+    printTxt(printer, '-'.repeat(WIDTH * 1.3));
+    printer.font('a').align('rt').style('b');
+    printTxt(printer, `TOTAL: R$ ${parseFloat(data.total || 0).toFixed(2).replace('.', ',')}`);
+    printer.font('b').style('n').align('ct');
+    printTxt(printer, '-'.repeat(WIDTH * 1.3));
 
-    printer.align('rt').style('b');
-    printTxt(printer, `TOTAL R$: ${parseFloat(data.total || 0).toFixed(2).replace('.', ',')}`);
-    printer.style('n');
-    printTxt(printer, '-'.repeat(WIDTH));
-
-    printer.align('ct');
     if (data.customer && data.customer.name) {
+        printer.style('b');
         printTxt(printer, `CLIENTE: ${data.customer.name.toUpperCase()}`);
+        printer.style('n');
     }
     if (data.fiadoTaker) {
-        printTxt(printer, `QUEM RETIROU: ${data.fiadoTaker.toUpperCase()}`);
+        printer.style('b');
+        printTxt(printer, `RETIRADO POR: ${data.fiadoTaker.toUpperCase()}`);
+        printer.style('n');
     }
 
     printer.feed(2);
-    printTxt(printer, '_'.repeat(30));
-    printTxt(printer, 'Assinatura do Cliente');
+    printTxt(printer, '_'.repeat(40));
+    printTxt(printer, 'Assinatura');
 
     printer.feed(1);
     printTxt(printer, new Date().toLocaleString('pt-BR'));
@@ -285,12 +297,22 @@ app.post('/print', async (req, res) => {
                     res.json({ success: true });
                 });
             } else {
-                buildNonFiscalReceipt(printer, data);
-                if (isMerchantCopy) {
-                    printer.feed(2).cut();
-                    buildMerchantReceipt(printer, data);
+                let printedSomething = false;
+                if (type === 'receipt') {
+                    buildNonFiscalReceipt(printer, data);
+                    printedSomething = true;
                 }
-                printer.feed(3).cut().close();
+                
+                if (isMerchantCopy) {
+                    if (printedSomething) printer.feed(2).cut();
+                    buildMerchantReceipt(printer, data);
+                    printedSomething = true;
+                }
+                
+                if (printedSomething) {
+                    printer.feed(3).cut();
+                }
+                printer.close();
                 res.json({ success: true });
             }
         } catch (e) {
