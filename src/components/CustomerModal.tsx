@@ -50,6 +50,43 @@ export default function CustomerModal({ onSelect, onClose, showDebtorsOnly = fal
         }
     };
 
+    const handleCpfCnpjLookup = async (value: string) => {
+        const cleanValue = value.replace(/\D/g, '');
+        setNewCustomer(prev => ({ ...prev, cpf: value }));
+        
+        // Se for CNPJ (14 dígitos), busca dados na BrasilAPI
+        if (cleanValue.length === 14) {
+            try {
+                showToast('Buscando CNPJ...', 'success');
+                const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanValue}`);
+                const data = await res.json();
+                
+                if (data.cnpj) {
+                    setNewCustomer(prev => ({
+                        ...prev,
+                        name: data.razao_social || data.nome_fantasia || prev.name,
+                        email: data.email || prev.email,
+                        phone: data.ddd_telefone_1 || data.ddd_telefone_2 || prev.phone,
+                        address: {
+                            ...prev.address,
+                            zipCode: data.cep ? data.cep.replace(/\D/g, '') : prev.address.zipCode,
+                            street: data.logradouro || prev.address.street,
+                            number: data.numero || prev.address.number,
+                            complement: data.complemento || prev.address.complement,
+                            neighborhood: data.bairro || prev.address.neighborhood,
+                            city: data.municipio || prev.address.city,
+                            state: data.uf || prev.address.state
+                        }
+                    }));
+                    showToast('Dados CNPJ preenchidos!', 'success');
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('Erro ao buscar CNPJ', 'error');
+            }
+        }
+    };
+
     const handleAddressSearch = async (q: string) => {
         setNewCustomer(prev => ({ ...prev, address: { ...prev.address, street: q } }));
         if (q.length < 3) { setAddressSuggestions([]); return; }
@@ -137,9 +174,9 @@ export default function CustomerModal({ onSelect, onClose, showDebtorsOnly = fal
                                 </p>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="col-span-2">
-                                        <Field label="Nome completo *" value={newCustomer.name} onChange={v => setNewCustomer({ ...newCustomer, name: v })} placeholder="Ex: João da Silva" />
+                                        <Field label="Nome completo / Razão Social *" value={newCustomer.name} onChange={v => setNewCustomer({ ...newCustomer, name: v })} placeholder="Ex: João da Silva / Empresa LTDA" />
                                     </div>
-                                    <Field label="CPF / CNPJ" value={newCustomer.cpf} onChange={v => setNewCustomer({ ...newCustomer, cpf: v })} placeholder="000.000.000-00" />
+                                    <Field label="CPF / CNPJ" value={newCustomer.cpf} onChange={handleCpfCnpjLookup} placeholder="Apenas números ou formatado" />
                                     <Field label="Telefone" value={newCustomer.phone} onChange={v => setNewCustomer({ ...newCustomer, phone: v })} placeholder="(00) 00000-0000" />
                                     <div className="col-span-2">
                                         <Field label="E-mail" value={newCustomer.email} onChange={v => setNewCustomer({ ...newCustomer, email: v })} placeholder="cliente@exemplo.com" />

@@ -1,6 +1,8 @@
 "use client";
 
-import { X, Receipt, Printer, Ban, User, History } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Receipt, Printer, Ban, User, History, Shield, Loader2 } from 'lucide-react';
+import { useToast } from '@/context/ToastContext';
 
 interface SaleDetailsProps {
     sale: any;
@@ -8,7 +10,36 @@ interface SaleDetailsProps {
 }
 
 export default function SaleDetails({ sale, onClose }: SaleDetailsProps) {
+    const { showToast } = useToast();
+    const [isCanceling, setIsCanceling] = useState(false);
+    const [localNfeStatus, setLocalNfeStatus] = useState(sale.nfeStatus);
+
     if (!sale) return null;
+
+    const handleCancelNfe = async () => {
+        if (!confirm('Deseja realmente solicitar o cancelamento desta NFC-e na SEFAZ? Isso não pode ser desfeito.')) return;
+        
+        setIsCanceling(true);
+        try {
+            const res = await fetch(`/api/fiscal/nfe?ref=${sale.nfeId || sale._id}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ justificativa: 'Cancelamento solicitado pelo estabelecimento.' })
+            });
+            const data = await res.json();
+            
+            if (res.ok && data.success) {
+                showToast('NFC-e cancelada com sucesso!', 'success');
+                setLocalNfeStatus('cancelled');
+            } else {
+                showToast(data.error || 'Erro ao cancelar NFC-e', 'error');
+            }
+        } catch (e) {
+            showToast('Erro de conexão ao cancelar NFC-e', 'error');
+        } finally {
+            setIsCanceling(false);
+        }
+    };
 
     const formatMethod = (method: string) => {
         const methodMap: Record<string, string> = {
@@ -84,15 +115,15 @@ export default function SaleDetails({ sale, onClose }: SaleDetailsProps) {
                                 <div key={`detail-item-${idx}`} className="flex items-center justify-between p-3 bg-[#111] border border-[#1a1a1a] rounded-lg group hover:border-orange-500/20 transition-all">
                                     <div className="flex-1 min-w-0 pr-4">
                                         <h5 className="text-[11px] font-bold text-[#888] group-hover:text-white transition-colors truncate uppercase italic">{item.name}</h5>
-                                        <p className="text-[9px] text-[#333] font-bold tabular-nums">R$ {item.price.toFixed(2)} x {item.quantity}</p>
+                                        <p className="text-[9px] text-[#333] font-bold tabular-nums">R$ {(item.price || 0).toFixed(2)} x {item.quantity || 1}</p>
                                     </div>
-                                    <span className="text-xs font-black text-white tabular-nums italic">R$ {item.total.toFixed(2)}</span>
+                                    <span className="text-xs font-black text-white tabular-nums italic">R$ {((item.total) || ((item.price || 0) * (item.quantity || 1))).toFixed(2)}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Pagamentos e Totais */}
+                    {/* Financeiro */}
                     <div className="space-y-4 pb-10">
                         <div className="flex items-center gap-2 border-b border-[#111] pb-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-orange-600" />
@@ -103,7 +134,7 @@ export default function SaleDetails({ sale, onClose }: SaleDetailsProps) {
                                 {sale.payments?.map((pm: any, idx: number) => (
                                     <div key={`detail-pm-${idx}`} className="flex justify-between items-center text-[11px] font-bold border-b border-[#1a1a1a]/50 pb-2 last:border-0">
                                         <span className="text-[#444] uppercase tracking-widest italic">{formatMethod(pm.method)}</span>
-                                        <span className="text-white tabular-nums">R$ {pm.amount.toFixed(2)}</span>
+                                        <span className="text-white tabular-nums">R$ {(pm.amount || 0).toFixed(2)}</span>
                                     </div>
                                 ))}
                             </div>
@@ -111,11 +142,11 @@ export default function SaleDetails({ sale, onClose }: SaleDetailsProps) {
                             <div className="pt-4 border-t border-[#1a1a1a] flex flex-col gap-1">
                                 <div className="flex justify-between items-center opacity-50">
                                     <span className="text-[9px] font-black text-[#555] uppercase tracking-[0.2em]">Subtotal</span>
-                                    <span className="text-xs font-black text-[#555] tabular-nums">R$ {(sale.subtotal || sale.total).toFixed(2)}</span>
+                                    <span className="text-xs font-black text-[#555] tabular-nums">R$ {(sale.subtotal || sale.total || 0).toFixed(2)}</span>
                                 </div>
-                                <div className="flex justify-between items-center mt-1">
-                                    <span className="text-[11px] font-black text-orange-600 uppercase tracking-[0.2em] italic">Total Final</span>
-                                    <span className="text-2xl font-black text-white italic tabular-nums shadow-orange-500/10">R$ {sale.total.toFixed(2)}</span>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-black text-white uppercase tracking-[0.2em]">Total</span>
+                                    <span className="text-2xl font-black text-white italic tabular-nums shadow-orange-500/10">R$ {(sale.total || 0).toFixed(2)}</span>
                                 </div>
                             </div>
                         </div>

@@ -8,7 +8,7 @@ import {
 import PaymentModal from './PaymentModal';
 import CustomerModal from './CustomerModal';
 import DebtModal from './DebtModal';
-import { useGlobal, Product } from '../context/GlobalContext';
+import { useGlobal, Product, SaleItem, Customer } from '../context/GlobalContext';
 import { useToast } from '../context/ToastContext';
 
 interface POSViewProps {
@@ -18,14 +18,14 @@ interface POSViewProps {
 export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
     const { products, categories, isLoading, refreshProducts, refreshCustomers } = useGlobal();
     const { showToast } = useToast();
-    const [cart, setCart] = useState<any[]>([]);
+    const [cart, setCart] = useState<SaleItem[]>([]);
     const [search, setSearch] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-    const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
     const [customerModalMode, setCustomerModalMode] = useState<'search' | 'register'>('search');
-    const [employee, setEmployee] = useState<any>(null);
+    const [employee, setEmployee] = useState<{name: string, role: string} | null>(null);
     const [showDebtorsOnly, setShowDebtorsOnly] = useState(false);
     const [visibleCount, setVisibleCount] = useState(40);
     const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
@@ -48,29 +48,32 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
         if (!id) return;
         if (p.stock != null && p.stock <= 0) { showToast('Produto fora de estoque', 'error'); return; }
         setCart(prev => {
-            const existing = prev.find(item => item._id === id);
-            if (existing) return prev.map(item => item._id === id ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price } : item);
-            return [...prev, { id, name: p.name, price: p.price, quantity: 1, total: p.price }];
+            const existing = prev.find((item: SaleItem) => item.productId === id);
+            if (existing) return prev.map((item: SaleItem) => item.productId === id ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price } : item);
+            return [...prev, { productId: id, name: p.name, price: p.price, quantity: 1, total: p.price } as unknown as SaleItem];
         });
     };
 
     const updateQuantity = (id: string, delta: number) => {
-        setCart(prev => prev.map(item => {
-            if (item.id === id) {
+        setCart(prev => prev.map((item: any) => {
+            if (item.productId === id || item.id === id) {
                 const newQty = Math.max(0, item.quantity + delta);
                 return { ...item, quantity: newQty, total: newQty * item.price };
             }
             return item;
-        }).filter(item => item.quantity > 0));
+        }).filter((item: any) => item.quantity > 0));
     };
 
-    const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.id !== id));
+    const removeFromCart = (id: string) => setCart(prev => prev.filter((item: any) => item.productId !== id && item.id !== id));
 
-    const total = useMemo(() => cart.reduce((acc, item) => acc + item.total, 0), [cart]);
+    const total = useMemo(() => cart.reduce((acc, item: any) => acc + (item.total || (item.price * item.quantity)), 0), [cart]);
 
-    const handlePaymentConfirm = async (payments: any[], isFiscal: boolean, isCustomerCopy: boolean, paidAmount: number, fiadoTaker?: string, isMerchantCopy?: boolean, discount: number = 0) => {
+    const handlePaymentConfirm = async (payments: any[], isFiscal: boolean, isCustomerCopy: boolean, paidAmount: number, fiadoTaker?: string, isMerchantCopy?: boolean, discount: number = 0, setProcessingMessage?: (msg: string) => void) => {
         const hasFiado = payments.some(p => p.method === 'fiado');
         const finalIsFiscal = hasFiado ? false : isFiscal;
+        
+        if (setProcessingMessage) setProcessingMessage('Registrando venda no sistema...');
+
         const saleData = {
             items: cart, total: total - discount, subtotal: total, discount, payments,
             paidAmount, isFiscal: finalIsFiscal, fiadoTaker,
@@ -86,33 +89,32 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                 let savedSale = await res.json();
                 
                 // If fiscal, call the Focus NFE API to emit NFC-e before printing
-                if (finalIsFiscal) {
-                    try {
-                        const fiscalRes = await fetch('/api/fiscal/nfe', {
-                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ saleId: savedSale._id || savedSale.id })
-                        });
-                        const fiscalData = await fiscalRes.json();
-                        if (fiscalData.success) {
-                            // Update the savedSale object with the returned fiscal data so the printer gets it
-                            savedSale = {
-                                ...savedSale,
-                                nfeQRCode: fiscalData.info?.qrcode_url || fiscalData.info?.url_danfe,
-                                nfeExternalUrl: fiscalData.info?.caminho_xml_nota_fiscal
-                            };
-                            showToast('NFC-e enviada para processamento!', 'success');
-                        } else {
-                            showToast('Erro ao emitir NFC-e: ' + (fiscalData.details || fiscalData.error), 'error');
-                        }
-                    } catch (e) {
-                        showToast('Erro ao contatar API Fiscal', 'error');
-                    }
+                // Removed redundant API call from POSView.tsx because db.addSale already emits it!
+                let fiscalFailed = savedSale.nfeStatus === 'error';
+                
+                if (finalIsFiscal && !fiscalFailed) {
+                    showToast('NFC-e autorizada e vinculada à venda!', 'success');
+                } else if (finalIsFiscal && fiscalFailed) {
+                    showToast('Erro ao emitir NFC-e: ' + (savedSale.nfeError || 'Falha na autorização'), 'error');
                 }
 
-                let printType = isCustomerCopy ? 'receipt' : 'none';
-                if (finalIsFiscal && isCustomerCopy) printType = 'both';
-                else if (finalIsFiscal) printType = 'fiscal';
+                if (setProcessingMessage) setProcessingMessage('Enviando informações para a impressora...');
+
+                let printType = isCustomerCopy ? 'receipt' : 'none'; // Customer non-fiscal copy
                 
+                if (finalIsFiscal && !fiscalFailed) {
+                    // SEFAZ emitted successfully.
+                    if (isFiscal) { // User toggled "Imprimir NFC-e (DANFE)" in UI
+                        if (isCustomerCopy) printType = 'both'; 
+                        else printType = 'fiscal';
+                    }
+                }
+                
+                // Don't print fiscal DANFE if it failed! But maybe print the small receipt if requested.
+                if (fiscalFailed && isCustomerCopy) {
+                    printType = 'receipt'; 
+                }
+
                 if (printType !== 'none' || isMerchantCopy) {
                     const printerPayload = {
                         type: printType, isMerchantCopy, fiadoTaker, items: cart,
@@ -133,7 +135,7 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                 
                 setCart([]); setSelectedCustomer(null); setIsPaymentOpen(false);
                 refreshProducts();
-                showToast('Venda finalizada com sucesso!', 'success');
+                showToast(fiscalFailed ? 'Venda finalizada (Erro na NFC-e)' : 'Venda finalizada com sucesso!', fiscalFailed ? 'info' : 'success');
             } else {
                 const errorData = await res.json();
                 showToast(`Erro: ${errorData.error || 'Erro desconhecido'}`, 'error');
@@ -144,7 +146,7 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
     };
 
     const filteredProducts = useMemo(() => products.filter(p =>
-        (selectedCategory ? p.category === selectedCategory : true) &&
+        (selectedCategory ? (p as any).categoryId === selectedCategory || p.category === selectedCategory : true) &&
         p.name.toLowerCase().includes(search.toLowerCase())
     ), [products, selectedCategory, search]);
 
@@ -293,7 +295,7 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-[10px] font-semibold text-gray-900 dark:text-white truncate">{selectedCustomer.name}</p>
-                                        <p className="text-[8px] text-gray-500 dark:text-[#555] font-medium">{selectedCustomer.phone || selectedCustomer.cpf || 'Identificado'}</p>
+                                        <p className="text-[8px] text-gray-500 dark:text-[#555] font-medium">{selectedCustomer.phone || (selectedCustomer as any).cpf || 'Identificado'}</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setSelectedCustomer(null)} className="text-gray-400 hover:text-gray-800 dark:text-[#444] dark:hover:text-white transition-colors">
@@ -307,7 +309,7 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                                 </div>
                                 <button onClick={() => setIsDebtModalOpen(true)} className="text-right group hover:opacity-80 transition-opacity">
                                     <p className="text-[7px] text-gray-500 dark:text-[#555] font-bold uppercase tracking-widest">Fiado</p>
-                                    <p className={`text-xs font-bold ${selectedCustomer.debtBalance > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-[#555]'}`}>
+                                        <p className={`text-xs font-bold ${(selectedCustomer.debtBalance || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-[#555]'}`}>
                                         R$ {(selectedCustomer.debtBalance || 0).toFixed(2)}
                                     </p>
                                 </button>
@@ -349,17 +351,17 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="flex items-center bg-gray-100 dark:bg-white/[0.04] rounded-md border border-gray-200 dark:border-white/[0.06]">
-                                        <button onClick={() => updateQuantity(item.id, -1)} className="p-1 px-1.5 text-gray-500 dark:text-[#444] hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                                        <button onClick={() => updateQuantity(item.productId || (item as any).id, -1)} className="p-1 px-1.5 text-gray-500 dark:text-[#444] hover:text-red-500 dark:hover:text-red-400 transition-colors">
                                             <Minus size={9} />
                                         </button>
                                         <span className="text-[10px] font-bold text-gray-900 dark:text-white min-w-[20px] text-center">{item.quantity}</span>
-                                        <button onClick={() => updateQuantity(item.id, 1)} className="p-1 px-1.5 text-gray-500 dark:text-[#444] hover:text-orange-500 transition-colors">
+                                        <button onClick={() => updateQuantity(item.productId || (item as any).id, 1)} className="p-1 px-1.5 text-gray-500 dark:text-[#444] hover:text-orange-500 transition-colors">
                                             <Plus size={9} />
                                         </button>
                                     </div>
                                     <div className="flex flex-col items-end min-w-[45px]">
-                                        <span className="text-[10px] font-bold text-gray-900 dark:text-white">R$ {(item.total || 0).toFixed(2)}</span>
-                                        <button onClick={() => removeFromCart(item.id)} className="text-gray-400 dark:text-[#333] hover:text-red-500 dark:hover:text-red-500 transition-colors opacity-100 lg:opacity-0 group-hover:opacity-100">
+                                        <span className="text-[10px] font-bold text-gray-900 dark:text-white">R$ {((item as any).total || (item.price * item.quantity)).toFixed(2)}</span>
+                                        <button onClick={() => removeFromCart(item.productId || (item as any).id)} className="text-gray-400 dark:text-[#333] hover:text-red-500 dark:hover:text-red-500 transition-colors opacity-100 lg:opacity-0 group-hover:opacity-100">
                                             <X size={11} />
                                         </button>
                                     </div>
@@ -413,7 +415,7 @@ export default function POSView({ bridgeStatus = 'offline' }: POSViewProps) {
                 <PaymentModal
                     total={total}
                     hasCustomer={!!selectedCustomer}
-                    customer={selectedCustomer}
+                    customer={selectedCustomer ? { id: selectedCustomer._id, name: selectedCustomer.name, debt: selectedCustomer.debtBalance } : undefined}
                     onCancel={() => setIsPaymentOpen(false)}
                     onConfirm={handlePaymentConfirm}
                 />

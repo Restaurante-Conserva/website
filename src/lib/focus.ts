@@ -100,28 +100,36 @@ export class FocusNFe {
     buildNFCePayload(sale: any, fiscalConfig: any) {
         if (!fiscalConfig) throw new Error("Fiscal configuration missing");
 
-        const items = sale.items.map((item: any, index: number) => ({
-            numero_item: (index + 1).toString(),
-            codigo_produto: item.id || item.productId,
-            descricao: item.name,
-            cfop: item.cfop || '5102',
-            codigo_ncm: item.ncm || '21069090',
-            unidade_comercial: "UN",
-            quantidade_comercial: item.quantity.toFixed(4), // Use 4 decimal places for quantity
-            valor_unitario_comercial: item.price.toFixed(2),
-            unidade_tributavel: "UN",
-            quantidade_tributavel: item.quantity.toFixed(4),
-            valor_unitario_tributavel: item.price.toFixed(2),
-            valor_bruto: (item.price * item.quantity).toFixed(2),
-            icms_origem: item.icms_origem || "0",
-            icms_situacao_tributaria: item.icms_situacao_tributaria || "102",
-            icms_aliquota: "0.00",
-            icms_base_calculo: "0.00",
-            icms_valor: "0.00",
-            icms_modalidade_base_calculo: "3",
-            pis_situacao_tributaria: "07",
-            cofins_situacao_tributaria: "07"
-        }));
+        const items = sale.items.map((item: any, index: number) => {
+            // Fix field "codigo_produto". Needs to be min length 1 and exist.
+            const productCode = item.productId || item.id || item._id || 'PROD001';
+            
+            return {
+                numero_item: (index + 1).toString(),
+                codigo_produto: productCode.length > 0 ? productCode : 'PROD001',
+                codigo_barras_comercial: "SEM GTIN",
+                codigo_barras_tributavel: "SEM GTIN",
+                descricao: item.name,
+                cfop: item.cfop || '5102',
+                codigo_ncm: item.ncm || '21069090',
+                unidade_comercial: "UN",
+                quantidade_comercial: (item.quantity || 1).toFixed(4), // Use 4 decimal places for quantity
+                valor_unitario_comercial: (item.price || 0).toFixed(2),
+                unidade_tributavel: "UN",
+                quantidade_tributavel: (item.quantity || 1).toFixed(4),
+                valor_unitario_tributavel: (item.price || 0).toFixed(2),
+                valor_bruto: ((item.price || 0) * (item.quantity || 1)).toFixed(2),
+                icms_origem: item.icms_origem || "0",
+                icms_situacao_tributaria: fiscalConfig.regime_tributario === "1" ? (item.icms_situacao_tributaria || "102") : undefined,
+                icms_cst: fiscalConfig.regime_tributario !== "1" ? (item.icms_cst || "00") : undefined,
+                icms_aliquota: "0.00",
+                icms_base_calculo: "0.00",
+                icms_valor: "0.00",
+                icms_modalidade_base_calculo: "3",
+                pis_situacao_tributaria: "07",
+                cofins_situacao_tributaria: "07"
+            };
+        });
 
         const formas_pagamento = sale.payments.map((p: any) => {
             let fp = "99"; // Outros
@@ -132,12 +140,12 @@ export class FocusNFe {
 
             return {
                 forma_pagamento: fp,
-                valor_pagamento: p.amount.toFixed(2)
+                valor_pagamento: (p.amount || 0).toFixed(2)
             };
         });
 
         // Totals
-        const valor_produtos = sale.items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0).toFixed(2);
+        const valor_produtos = sale.items.reduce((acc: number, item: any) => acc + ((item.price || 0) * (item.quantity || 1)), 0).toFixed(2);
 
         const payload: any = {
             data_emissao: new Date().toISOString(),
@@ -151,8 +159,8 @@ export class FocusNFe {
             items,
             formas_pagamento,
             valor_produtos,
-            valor_desconto: "0.00",
-            valor_total: sale.total.toFixed(2),
+            valor_desconto: (sale.discount || 0).toFixed(2),
+            valor_total: (sale.total || 0).toFixed(2),
             icms_valor_total: "0.00",
             // Dados do Emitente
             cnpj_emitente: fiscalConfig.cnpj_emitente?.replace(/\D/g, ''),

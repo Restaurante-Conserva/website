@@ -240,12 +240,16 @@ function buildMerchantReceipt(printer, data) {
         printer.style('n');
     }
 
+    printer.feed(1);
+    printer.style('b');
+    printTxt(printer, `Data/Hora: ${new Date().toLocaleString('pt-BR')}`);
+    printer.style('n');
+
     printer.feed(2);
     printTxt(printer, '_'.repeat(40));
     printTxt(printer, 'Assinatura');
 
     printer.feed(1);
-    printTxt(printer, new Date().toLocaleString('pt-BR'));
 }
 
 app.post('/print', async (req, res) => {

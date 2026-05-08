@@ -71,22 +71,26 @@ export default function EmployeesView({ employees, refreshEmployees, onDelete }:
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {employees.map(emp => (
-                    <tr key={emp._id} className="border-b border-[#1a1a1a] hover:bg-white/[0.02] transition-colors group">
-                        <td className="py-4 px-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center text-[#333]"><User size={14} /></div>
-                                <span className="text-sm font-medium text-gray-200">{emp.name}</span>
+                    <div key={emp._id} className="bg-white dark:bg-[#0a0a0a] border border-gray-100 dark:border-[#1a1a1a] rounded-lg p-4 flex items-center justify-between shadow-sm dark:shadow-none transition-all hover:border-orange-500/20 group">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-500">
+                                <User size={18} />
                             </div>
-                        </td>
-                        <td className="py-4 px-4">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-500/10 text-orange-500 border border-orange-500/20">
-                                <Shield size={10} /> {emp.role}
+                            <div>
+                                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 block">{emp.name}</span>
+                                <div className="inline-flex items-center gap-1 mt-1 text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-[#666]">
+                                    <Shield size={10} /> {emp.role}
+                                </div>
                             </div>
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                            <button onClick={() => handleDeleteClick(emp._id ?? '')} className="p-2 text-gray-500 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
-                        </td>
-                    </tr>
+                        </div>
+                        <button 
+                            onClick={() => handleDeleteClick(emp._id ?? '')} 
+                            className="p-2 text-gray-400 dark:text-[#333] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-all opacity-100 lg:opacity-0 group-hover:opacity-100 cursor-pointer border-none bg-transparent"
+                            title="Remover Operador"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
                 ))}
             </div>
         </div>

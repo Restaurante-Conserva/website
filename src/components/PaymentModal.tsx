@@ -23,7 +23,7 @@ interface PaymentModalProps {
     total: number;
     hasCustomer: boolean;
     onCancel: () => void;
-    onConfirm: (payments: Payment[], isFiscal: boolean, isCustomerCopy: boolean, paidAmount: number, fiadoTaker?: string, isMerchantCopy?: boolean, discount?: number) => void;
+    onConfirm: (payments: Payment[], isFiscal: boolean, isCustomerCopy: boolean, paidAmount: number, fiadoTaker?: string, isMerchantCopy?: boolean, discount?: number, setProcessingMessage?: (msg: string) => void) => Promise<void>;
     isPartialAllowed?: boolean;
     customer?: Customer;
 }
@@ -48,6 +48,7 @@ export default function PaymentModal({ total, hasCustomer, onCancel, onConfirm, 
     const [receivedAmount, setReceivedAmount] = useState('');
     const [totalChange, setTotalChange] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [processingMessage, setProcessingMessage] = useState('Processando transação...');
     const [discount, setDiscount] = useState(0);
     const [discountInput, setDiscountInput] = useState('');
     const [isGeneratingPix, setIsGeneratingPix] = useState(false);
@@ -67,7 +68,12 @@ export default function PaymentModal({ total, hasCustomer, onCancel, onConfirm, 
     }, [remaining, payments]);
 
     useEffect(() => {
-        if (hasFiado) { setIsMerchantCopy(true); setIsFiscal(false); }
+        if (hasFiado) { 
+            setIsMerchantCopy(true); 
+            setIsFiscal(false); 
+        } else {
+            setIsMerchantCopy(false);
+        }
     }, [hasFiado]);
 
     useEffect(() => {
@@ -114,9 +120,10 @@ export default function PaymentModal({ total, hasCustomer, onCancel, onConfirm, 
         isSubmittingRef.current = true;
         setIsProcessing(true);
         try {
-            await onConfirm(payments, isFiscal, isCustomerCopy, paidTotal + totalChange, fiadoTaker, isMerchantCopy, discount);
+            await onConfirm(payments, isFiscal, isCustomerCopy, paidTotal + totalChange, fiadoTaker, isMerchantCopy, discount, setProcessingMessage);
         } finally {
             setIsProcessing(false);
+            setProcessingMessage('Processando transação...');
             isSubmittingRef.current = false;
         }
     };
@@ -128,7 +135,7 @@ export default function PaymentModal({ total, hasCustomer, onCancel, onConfirm, 
                 {isProcessing && (
                     <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-orange-500">
                         <Loader2 className="animate-spin mb-3" size={28} />
-                        <p className="text-xs text-gray-300">Processando transação...</p>
+                        <p className="text-xs text-gray-300 animate-pulse">{processingMessage}</p>
                     </div>
                 )}
 
@@ -339,7 +346,7 @@ export default function PaymentModal({ total, hasCustomer, onCancel, onConfirm, 
                             <button onClick={() => !hasFiado && setIsFiscal(!isFiscal)} disabled={hasFiado} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg border transition-all cursor-pointer bg-transparent ${isFiscal && !hasFiado ? 'border-orange-500/30 bg-orange-500/5' : 'border-gray-100 dark:border-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-black'} ${hasFiado ? 'opacity-30 cursor-not-allowed' : ''}`}>
                                 <div className="flex items-center gap-2.5">
                                     <ShieldCheck size={15} className={isFiscal && !hasFiado ? 'text-orange-600' : 'text-gray-400'} />
-                                    <span className="text-xs text-gray-700 dark:text-gray-300">Emitir NFC-e</span>
+                                    <span className="text-xs text-gray-700 dark:text-gray-300">Imprimir NFC-e (DANFE)</span>
                                 </div>
                                 <div className={`w-9 h-5 rounded-full transition-all relative ${isFiscal && !hasFiado ? 'bg-orange-600' : 'bg-gray-200 dark:bg-[#333]'}`}>
                                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${isFiscal && !hasFiado ? 'left-4' : 'left-0.5'}`} />
@@ -349,7 +356,29 @@ export default function PaymentModal({ total, hasCustomer, onCancel, onConfirm, 
                             <button onClick={() => setIsCustomerCopy(!isCustomerCopy)} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg border transition-all cursor-pointer bg-transparent ${isCustomerCopy ? 'border-orange-500/30 bg-orange-500/5' : 'border-gray-100 dark:border-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-black'}`}>
                                 <div className="flex items-center gap-2.5">
                                     <Receipt size={15} className={isCustomerCopy ? 'text-orange-600' : 'text-gray-400'} />
-                                    <span className="text-xs text-gray-700 dark:text-gray-300">Recibo cliente</span>
+                                    <span className="text-xs text-gray-700 dark:text-gray-300">Imprimir comprovante local (Não Fiscal)</span>
+                                </div>
+                                <div className={`w-9 h-5 rounded-full transition-all relative ${isCustomerCopy ? 'bg-orange-600' : 'bg-gray-200 dark:bg-[#333]'}`}>
+                                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${isCustomerCopy ? 'left-4' : 'left-0.5'}`} />
+                                </div>
+                            </button>
+
+                            {hasFiado && (
+                                <button onClick={() => setIsMerchantCopy(!isMerchantCopy)} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg border transition-all cursor-pointer bg-transparent ${isMerchantCopy ? 'border-orange-500/30 bg-orange-500/5' : 'border-gray-100 dark:border-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-black'}`}>
+                                    <div className="flex items-center gap-2.5">
+                                        <Printer size={15} className={isMerchantCopy ? 'text-orange-600' : 'text-gray-400'} />
+                                        <span className="text-xs text-gray-700 dark:text-gray-300">Imprimir via com assinatura (Fiado)</span>
+                                    </div>
+                                    <div className={`w-9 h-5 rounded-full transition-all relative ${isMerchantCopy ? 'bg-orange-600' : 'bg-gray-200 dark:bg-[#333]'}`}>
+                                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${isMerchantCopy ? 'left-4' : 'left-0.5'}`} />
+                                    </div>
+                                </button>
+                            )}
+
+                            <button onClick={() => setIsCustomerCopy(!isCustomerCopy)} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg border transition-all cursor-pointer bg-transparent ${isCustomerCopy ? 'border-orange-500/30 bg-orange-500/5' : 'border-gray-100 dark:border-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-black'}`}>
+                                <div className="flex items-center gap-2.5">
+                                    <Receipt size={15} className={isCustomerCopy ? 'text-orange-600' : 'text-gray-400'} />
+                                    <span className="text-xs text-gray-700 dark:text-gray-300">Imprimir comprovante local (Não Fiscal)</span>
                                 </div>
                                 <div className={`w-9 h-5 rounded-full transition-all relative ${isCustomerCopy ? 'bg-orange-600' : 'bg-gray-200 dark:bg-[#333]'}`}>
                                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${isCustomerCopy ? 'left-4' : 'left-0.5'}`} />
